@@ -12,9 +12,7 @@ from .variational_nodes import (
 
 class W_Node(UnivariateGaussian_Unobserved_Variational_Node):
     def __init__(self, dim, pmean, pvar, qmean, qvar, qE=None, qE2=None):
-        super().__init__(
-            dim=dim, pmean=pmean, pvar=pvar, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2
-        )
+        super().__init__(dim=dim, pmean=pmean, pvar=pvar, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2)
 
     def precompute(self, options):
         # Precompute terms to speed up computation
@@ -83,9 +81,7 @@ class W_Node(UnivariateGaussian_Unobserved_Variational_Node):
             # NOTE Do not use "Qvar" in the update like we used to because this
             # does not hold for stochastic because of the ro weighting
             Qmean[:, k] *= 1 - ro
-            Qmean[:, k] += (
-                ro * (1 / (Alpha[:, k] + foo)) * (bar + Alpha[:, k] * Mu[:, k])
-            )
+            Qmean[:, k] += ro * (1 / (Alpha[:, k] + foo)) * (bar + Alpha[:, k] * Mu[:, k])
 
     def calculateELBO(self):
         # Collect parameters and expectations of current node
@@ -99,9 +95,7 @@ class W_Node(UnivariateGaussian_Unobserved_Variational_Node):
                 self.markov_blanket["MuW"].getExpectations()["E2"],
             )
         else:
-            PE, PE2 = self.P.getParameters()["mean"], np.zeros(
-                (self.dim[0], self.dim[1])
-            )
+            PE, PE2 = self.P.getParameters()["mean"], np.zeros((self.dim[0], self.dim[1]))
 
         if "AlphaW" in self.markov_blanket:
             Alpha = self.markov_blanket["AlphaW"].getExpectations(expand=True)
@@ -259,10 +253,7 @@ class SW_Node(BernoulliGaussian_Unobserved_Variational_Node):
                 (
                     tau_gpu
                     * gpu_utils.dot(
-                        (
-                            Z_gpu[:, k]
-                            * gpu_utils.array(Z["E"][:, np.arange(self.dim[1]) != k]).T
-                        ).T,
+                        (Z_gpu[:, k] * gpu_utils.array(Z["E"][:, np.arange(self.dim[1]) != k]).T).T,
                         gpu_utils.array(SW[:, np.arange(self.dim[1]) != k].T),
                     )
                 ).sum(axis=0)
@@ -270,17 +261,11 @@ class SW_Node(BernoulliGaussian_Unobserved_Variational_Node):
 
             term4_tmp3 = foo[:, k] + Alpha[:, k]
 
-            term4 = (
-                coeff
-                * 0.5
-                * np.divide(np.square(term4_tmp1[:, k] - term4_tmp2), term4_tmp3)
-            )
+            term4 = coeff * 0.5 * np.divide(np.square(term4_tmp1[:, k] - term4_tmp2), term4_tmp3)
 
             # Update S
             Qtheta[:, k] *= 1 - ro
-            Qtheta[:, k] += ro * (
-                1.0 / (1.0 + np.exp(-(term1 + term2 - term3 + term4)))
-            )
+            Qtheta[:, k] += ro * (1.0 / (1.0 + np.exp(-(term1 + term2 - term3 + term4))))
 
             # Update W
             tmp_var = 1.0 / term4_tmp3
@@ -323,10 +308,7 @@ class SW_Node(BernoulliGaussian_Unobserved_Variational_Node):
 
         # Calculate ELBO term for W
         lb_pw = (alpha["lnE"].sum() - np.sum(alpha["E"] * WW)) / 2.0
-        lb_qw = (
-            -0.5 * self.dim[1] * self.dim[0]
-            - 0.5 * (S * np.log(Qvar) + (1.0 - S) * np.log(1.0 / alpha["E"])).sum()
-        )
+        lb_qw = -0.5 * self.dim[1] * self.dim[0] - 0.5 * (S * np.log(Qvar) + (1.0 - S) * np.log(1.0 / alpha["E"])).sum()
         lb_w = lb_pw - lb_qw
 
         # Calculate ELBO term for S

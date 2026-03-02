@@ -58,9 +58,7 @@ class Z_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         else:
             p_cov_inv = self.p_cov_inv
             if ix is not None:
-                p_cov_inv = np.array(
-                    [p_cov_inv[i][ix][:, ix] for i in range(p_cov_inv.shape[0])]
-                )
+                p_cov_inv = np.array([p_cov_inv[i][ix][:, ix] for i in range(p_cov_inv.shape[0])])
 
         # Get variational parameters of current node
         Q = self.Q.getParameters()
@@ -72,9 +70,7 @@ class Z_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Q["mean"] = par_up["Qmean"]
         Q["cov"] = par_up["Qcov"]
 
-        self.Q.setParameters(
-            mean=Q["mean"], cov=Q["cov"]
-        )  # NOTE should not be necessary but safer to keep for now
+        self.Q.setParameters(mean=Q["mean"], cov=Q["cov"])  # NOTE should not be necessary but safer to keep for now
 
     def _updateParameters(self, Y, W, tau, Qmean, Qcov, p_cov_inv, mask):
         """Hidden method to compute parameter updates"""
@@ -145,9 +141,7 @@ class Z_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         term2 = 0.5 * np.trace(
             gpu_utils.dot(
                 p_cov_inv[k, :, :],
-                gpu_utils.dot(
-                    gradSigma, gpu_utils.dot(p_cov_inv[k, :, :], Qcov[k, :, :])
-                ),
+                gpu_utils.dot(gradSigma, gpu_utils.dot(p_cov_inv[k, :, :], Qcov[k, :, :])),
             )
         )
         term3 = 0.5 * gpu_utils.dot(
@@ -182,9 +176,7 @@ class Z_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         term1 = 0.5 * p_cov_inv_logdet[k]
         # compute term from the exponential in the Gaussian
         term2 = -0.5 * np.trace(gpu_utils.dot(p_cov_inv[k, :, :], Qcov[k, :, :]))
-        term3 = -0.5 * gpu_utils.dot(
-            QE[:, k].transpose(), gpu_utils.dot(p_cov_inv[k, :, :], QE[:, k])
-        )
+        term3 = -0.5 * gpu_utils.dot(QE[:, k].transpose(), gpu_utils.dot(p_cov_inv[k, :, :], QE[:, k]))
 
         # tmp1 = -0.5 * (np.trace(gpu_utils.dot(p_cov_inv[k,:,:], Qcov[k,:,:])) +  gpu_utils.dot(QE[:,k].transpose(), gpu_utils.dot(p_cov_inv[k,:,:], QE[:,k])))# expectation of quadratic form
         # tmp2 = 0.5 * p_cov_inv_logdet[k]

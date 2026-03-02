@@ -51,15 +51,11 @@ class MultivariateGaussian(Distribution):
         Distribution.__init__(self, dim)
 
         # Check dimensions are correct
-        assert (
-            len(dim) == 2
-        ), "You need to specify two dimensions for 'dim': (number of distributions, dimensionality) "
-        assert not (
-            dim[0] == 1 and dim[1] == 1
-        ), "A 1x1 multivariate normal reduces to a Univariate normal "
-        assert (axis_cov == 0) or (
-            axis_cov == 1
-        ), "Error : axis_cov is the index of the dimension (N, D) for the covariance matrix, either 0 (N,N) or 1 (D,D)"
+        assert len(dim) == 2, "You need to specify two dimensions for 'dim': (number of distributions, dimensionality) "
+        assert not (dim[0] == 1 and dim[1] == 1), "A 1x1 multivariate normal reduces to a Univariate normal "
+        assert (axis_cov == 0) or (axis_cov == 1), (
+            "Error : axis_cov is the index of the dimension (N, D) for the covariance matrix, either 0 (N,N) or 1 (D,D)"
+        )
 
         ## Initialise the parameters ##
 
@@ -75,9 +71,9 @@ class MultivariateGaussian(Distribution):
             mean = (mean * np.ones((dim[1], dim[0]))).transpose()
 
         # check 'mean' has the right dimensions
-        assert (
-            mean.shape[0] == dim[0] and mean.shape[1] == dim[1]
-        ), "The given mean could not be broadcasted into a matrix with shape (N,D) "
+        assert mean.shape[0] == dim[0] and mean.shape[1] == dim[1], (
+            "The given mean could not be broadcasted into a matrix with shape (N,D) "
+        )
 
         ### Initialise the covariance
 
@@ -100,13 +96,13 @@ class MultivariateGaussian(Distribution):
         # If 'cov' is a list transform it to a tensor
         elif isinstance(cov, list):
             if axis_cov == 1:
-                assert (
-                    cov[0].shape == (dim[1], dim[1]) and len(cov) == dim[0]
-                ), "If providing a list, the covariance has to be a list of length N with arrays of dim (D,D)"
+                assert cov[0].shape == (dim[1], dim[1]) and len(cov) == dim[0], (
+                    "If providing a list, the covariance has to be a list of length N with arrays of dim (D,D)"
+                )
             else:
-                assert (
-                    cov[0].shape == (dim[0], dim[0]) and len(cov) == dim[1]
-                ), "If providing a list, the covariance has to be a list of length D with arrays of dim (N,N)"
+                assert cov[0].shape == (dim[0], dim[0]) and len(cov) == dim[1], (
+                    "If providing a list, the covariance has to be a list of length D with arrays of dim (N,N)"
+                )
             cov = np.array(cov)
         else:
             print("The covariance needs to be a list or an array.")
@@ -163,11 +159,7 @@ class MultivariateGaussian(Distribution):
                     .T.dot(linalg.det(self.params["cov"][n]))
                     .dot(x[n, :] - self.params["mean"][n, :])
                 )
-                l += (
-                    -0.5 * D * np.log(2 * np.pi)
-                    - 0.5 * np.log(linalg.det(self.params["cov"][n]))
-                    - 0.5 * qterm
-                )
+                l += -0.5 * D * np.log(2 * np.pi) - 0.5 * np.log(linalg.det(self.params["cov"][n])) - 0.5 * qterm
             # return np.sum( np.log(stats.multivariate_normal.pdf(x, mean=self.mean[n,:], cov=self.cov[n,:,:])) )
 
         else:
@@ -178,11 +170,7 @@ class MultivariateGaussian(Distribution):
                     .dot(linalg.det(self.params["cov"][d]))
                     .dot((x[:, d] - self.params["mean"][:, d]).T)
                 )
-                l += (
-                    -0.5 * N * np.log(2 * np.pi)
-                    - 0.5 * np.log(linalg.det(self.params["cov"][d]))
-                    - 0.5 * qterm
-                )
+                l += -0.5 * N * np.log(2 * np.pi) - 0.5 * np.log(linalg.det(self.params["cov"][d])) - 0.5 * qterm
 
         return l
 
@@ -215,20 +203,12 @@ class MultivariateGaussian(Distribution):
         if axis_cov == 1:
             samples = []
             for n in range(self.dim[0]):
-                samples.append(
-                    np.random.multivariate_normal(
-                        self.params["mean"][n, :], self.params["cov"][n]
-                    )
-                )
+                samples.append(np.random.multivariate_normal(self.params["mean"][n, :], self.params["cov"][n]))
             samples = np.array(samples)
         else:
             samples = []
             for d in range(self.dim[1]):
-                samples.append(
-                    np.random.multivariate_normal(
-                        self.params["mean"][:, d], self.params["cov"][d]
-                    )
-                )
+                samples.append(np.random.multivariate_normal(self.params["mean"][:, d], self.params["cov"][d]))
             samples = np.array(samples).T
         return samples
 
@@ -254,15 +234,11 @@ class MultivariateGaussian_reparam(Distribution):
     def __init__(self, dim, alpha, K, lamb, axis_cov=1, E=None):
         Distribution.__init__(self, dim)
 
-        assert (
-            len(dim) == 2
-        ), "You need to specify two dimensions for 'dim': (number of distributions, dimensionality) "
-        assert not (
-            dim[0] == 1 and dim[1] == 1
-        ), "A 1x1 multivariate normal reduces to a Univariate normal "
-        assert (axis_cov == 0) or (
-            axis_cov == 1
-        ), "Error : axis_cov is the index of the dimension (N, D) for the covariance matrix, either 0 (N,N) or 1 (D,D)"
+        assert len(dim) == 2, "You need to specify two dimensions for 'dim': (number of distributions, dimensionality) "
+        assert not (dim[0] == 1 and dim[1] == 1), "A 1x1 multivariate normal reduces to a Univariate normal "
+        assert (axis_cov == 0) or (axis_cov == 1), (
+            "Error : axis_cov is the index of the dimension (N, D) for the covariance matrix, either 0 (N,N) or 1 (D,D)"
+        )
 
         # Broadcast scalars to arrays for alpha and lambda
         if isinstance(alpha, (int, float)):
@@ -281,12 +257,12 @@ class MultivariateGaussian_reparam(Distribution):
             lamb = (lamb * np.ones((dim[1], dim[0]))).transpose()
 
         # Check dimensions of alpha and lamb are correct
-        assert (
-            alpha.shape[0] == dim[0] and alpha.shape[1] == dim[1]
-        ), "The given alpha could not be broadcasted into a matrix with shape (N,D) "
-        assert (
-            lamb.shape[0] == dim[0] and lamb.shape[1] == dim[1]
-        ), "The given lamb could not be broadcasted into a matrix with shape (N,D) "
+        assert alpha.shape[0] == dim[0] and alpha.shape[1] == dim[1], (
+            "The given alpha could not be broadcasted into a matrix with shape (N,D) "
+        )
+        assert lamb.shape[0] == dim[0] and lamb.shape[1] == dim[1], (
+            "The given lamb could not be broadcasted into a matrix with shape (N,D) "
+        )
 
         # check K has the right dimensions
         if isinstance(K, np.ndarray):
@@ -308,13 +284,13 @@ class MultivariateGaussian_reparam(Distribution):
         # If 'K' is a list transform it to a tensor
         elif isinstance(K, list):
             if axis_cov == 1:
-                assert (
-                    K[0].shape == (dim[1], dim[1]) and len(K) == dim[0]
-                ), "If providing a list, K has to be a list of length N with arrays of dim (D,D)"
+                assert K[0].shape == (dim[1], dim[1]) and len(K) == dim[0], (
+                    "If providing a list, K has to be a list of length N with arrays of dim (D,D)"
+                )
             else:
-                assert (
-                    K[0].shape == (dim[0], dim[0]) and len(K) == dim[1]
-                ), "If providing a list, K has to be a list of length D with arrays of dim (N,N)"
+                assert K[0].shape == (dim[0], dim[0]) and len(K) == dim[1], (
+                    "If providing a list, K has to be a list of length D with arrays of dim (N,N)"
+                )
             K = np.array(K)
         else:
             print("The input K needs to be a list or an array.")
@@ -353,17 +329,15 @@ class MultivariateGaussian_reparam(Distribution):
                 E[:, i] = self.params["K"][i, :, :].dot(self.params["alpha"][:, i])
         elif self.axis_cov == 1:
             for i in range(self.dim[0]):
-                E[i, :] = self.params["K"][i, :, :].dot(
-                    self.params["alpha"][i, :].transpose()
-                )
+                E[i, :] = self.params["K"][i, :, :].dot(self.params["alpha"][i, :].transpose())
 
         # second moment here of the marginal components: given by E(X_n^2) = E(X_n)^2 + Var(X_n)
         E2 = np.empty((self.dim[0], self.dim[1]))
         if self.axis_cov == 0:
             for i in range(self.dim[1]):
-                A = np.diag(self.params["lamb"][:, i]).dot(
-                    self.params["K"][i, :, :]
-                ).dot(np.diag(self.params["lamb"][:, i])) + np.eye(self.dim[0])
+                A = np.diag(self.params["lamb"][:, i]).dot(self.params["K"][i, :, :]).dot(
+                    np.diag(self.params["lamb"][:, i])
+                ) + np.eye(self.dim[0])
                 Ainv = np.linalg.inv(A)
                 Sigma_diag = (1 / self.params["lamb"][:, i] ** 2) * (1 - np.diag(Ainv))
                 E2[:, i] = E[:, i] ** 2 + Sigma_diag

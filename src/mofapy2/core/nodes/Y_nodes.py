@@ -90,11 +90,7 @@ class Y_Node(Constant_Variational_Node):
             Z, ZZ = Ztmp["E"], Ztmp["E2"]
 
             tmp = (
-                np.square(Y)
-                + ZZ.dot(WW)
-                - np.dot(np.square(Z), np.square(W))
-                + np.square(Z.dot(W))
-                - 2 * Z.dot(W) * Y
+                np.square(Y) + ZZ.dot(WW) - np.dot(np.square(Z), np.square(W)) + np.square(Z.dot(W)) - 2 * Z.dot(W) * Y
             )
             tmp *= 0.5
             tmp[mask] = 0.0
@@ -102,8 +98,5 @@ class Y_Node(Constant_Variational_Node):
             for g in range(len(np.unique(groups))):
                 idx = groups == g
                 foo = (~mask[idx, :]).sum(axis=0)
-                elbo += (
-                    0.5 * (Tau["lnE"][g, :] * foo).sum()
-                    - (Tau["E"][g, :] * tmp[idx, :]).sum()
-                )
+                elbo += 0.5 * (Tau["lnE"][g, :] * foo).sum() - (Tau["E"][g, :] * tmp[idx, :]).sum()
         return elbo

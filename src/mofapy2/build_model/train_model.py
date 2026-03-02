@@ -2,7 +2,6 @@
 Module to train a bioFAM model
 """
 
-
 from mofapy2.core.BayesNet import BayesNet
 
 

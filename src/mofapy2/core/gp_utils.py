@@ -124,9 +124,7 @@ def covar_to_corr(C):
     return Ccor
 
 
-def set_inducing_points(
-    data, sample_cov, groups, dims, n_inducing, random=False, seed_inducing=0
-):
+def set_inducing_points(data, sample_cov, groups, dims, n_inducing, random=False, seed_inducing=0):
     """
     Method to select samples to use as inducing points for the GP
     """
@@ -148,9 +146,7 @@ def set_inducing_points(
         nonmissing_samples_tiesshuffled = nonmissing_samples[
             np.lexsort((np.random.random(N_nonmissing), loc[nonmissing_samples]))
         ]  # shuffle tienp.randomly (e.g. between groups)
-        grid_ix = np.floor(
-            np.arange(0, N_nonmissing, step=N_nonmissing / n_inducing)
-        ).astype("int")
+        grid_ix = np.floor(np.arange(0, N_nonmissing, step=N_nonmissing / n_inducing)).astype("int")
         if grid_ix[-1] == N_nonmissing:  # avoid out of bound
             grid_ix = grid_ix[:-1]
         idx_inducing = nonmissing_samples_tiesshuffled[grid_ix]

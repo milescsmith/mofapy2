@@ -11,12 +11,8 @@ from .variational_nodes import (
 
 
 class Z_Node(UnivariateGaussian_Unobserved_Variational_Node):
-    def __init__(
-        self, dim, pmean, pvar, qmean, qvar, qE=None, qE2=None, weight_views=False
-    ):
-        super().__init__(
-            dim=dim, pmean=pmean, pvar=pvar, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2
-        )
+    def __init__(self, dim, pmean, pvar, qmean, qvar, qE=None, qE2=None, weight_views=False):
+        super().__init__(dim=dim, pmean=pmean, pvar=pvar, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2)
 
         self.mini_batch = None
         self.factors_axis = 1
@@ -92,9 +88,7 @@ class Z_Node(UnivariateGaussian_Unobserved_Variational_Node):
             Q["mean"][ix, :] = par_up["Qmean"]
             Q["var"][ix, :] = par_up["Qvar"]
 
-        self.Q.setParameters(
-            mean=Q["mean"], var=Q["var"]
-        )  # NOTE should not be necessary but safer to keep for now
+        self.Q.setParameters(mean=Q["mean"], var=Q["var"])  # NOTE should not be necessary but safer to keep for now
 
     def _updateParameters(self, Y, W, tau, Mu, Alpha, Qmean, Qvar, mask):
         """Hidden method to compute parameter updates"""
@@ -158,9 +152,7 @@ class Z_Node(UnivariateGaussian_Unobserved_Variational_Node):
                 self.markov_blanket["MuZ"].getExpectations()["E2"],
             )
         else:
-            PE, PE2 = self.P.getParameters()["mean"], np.zeros(
-                (self.dim[0], self.dim[1])
-            )
+            PE, PE2 = self.P.getParameters()["mean"], np.zeros((self.dim[0], self.dim[1]))
 
         if "AlphaZ" in self.markov_blanket:
             Alpha = self.markov_blanket["AlphaZ"].getExpectations(expand=True)
@@ -314,9 +306,7 @@ class SZ_Node(BernoulliGaussian_Unobserved_Variational_Node):
 
             self.mini_batch["EB"] = par_up["theta"]
             self.mini_batch["E"] = par_up["mean_B1"] * par_up["theta"]
-            self.mini_batch["E2"] = par_up["theta"] * (
-                np.square(par_up["mean_B1"]) + par_up["var_B1"]
-            )
+            self.mini_batch["E2"] = par_up["theta"] * (np.square(par_up["mean_B1"]) + par_up["var_B1"])
             self.mini_batch["ENN"] = (
                 par_up["theta"] * (np.square(par_up["mean_B1"]) + par_up["var_B1"])
                 + (1 - par_up["theta"]) * Q["var_B0"][ix, :]
@@ -418,9 +408,7 @@ class SZ_Node(BernoulliGaussian_Unobserved_Variational_Node):
 
             # Update Z
             Qvar_T1[:, k] = gpu_utils.asnumpy(1.0 / term4_tmp3[:, k])
-            Qmean_T1[:, k] = Qvar_T1[:, k] * gpu_utils.asnumpy(
-                term4_tmp1[:, k] - term4_tmp2[:, k]
-            )
+            Qmean_T1[:, k] = Qvar_T1[:, k] * gpu_utils.asnumpy(term4_tmp1[:, k] - term4_tmp2[:, k])
 
             # Update Expectations for the next iteration
             SZ[:, k] = Qtheta[:, k] * Qmean_T1[:, k]
@@ -444,10 +432,7 @@ class SZ_Node(BernoulliGaussian_Unobserved_Variational_Node):
 
         # Calculate ELBO for Z
         lb_pz = (alpha["lnE"].sum() - np.sum(alpha["E"] * ZZ)) / 2.0
-        lb_qz = (
-            -0.5 * self.dim[1] * self.dim[0]
-            - 0.5 * (T * np.log(Qvar) + (1.0 - T) * np.log(1.0 / alpha["E"])).sum()
-        )
+        lb_qz = -0.5 * self.dim[1] * self.dim[0] - 0.5 * (T * np.log(Qvar) + (1.0 - T) * np.log(1.0 / alpha["E"])).sum()
         lb_z = lb_pz - lb_qz
 
         # Calculate ELBO for T

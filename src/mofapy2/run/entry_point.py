@@ -43,9 +43,7 @@ def keyboardinterrupt_saver(func):
                 else:
                     tmp_file = Path("/") / "tmp" / "mofa_{}_interrupted.hdf5".format(strftime("%Y%m%d-%H%M%S"))
                 self.save(outfile=tmp_file)
-                logger.info(
-                    f"Saved partially trained model in {tmp_file}. Exiting now."
-                )
+                logger.info(f"Saved partially trained model in {tmp_file}. Exiting now.")
             else:
                 logger.exception(
                     "Exiting now without saving the partially trained model. To save a partially trained model, "
@@ -56,7 +54,7 @@ def keyboardinterrupt_saver(func):
     return saver
 
 
-class EntryPoint:
+class entry_point:
     def __init__(self):
         self.print_banner()
         self.dimensionalities = {"C": 0}
@@ -69,18 +67,18 @@ class EntryPoint:
     def print_banner(self):
         """Method to print the mofapy2 banner"""
 
-        banner = r"""
-        __  __  ____  ______
-        |  \/  |/ __ \|  ____/\    _
-        | \  / | |  | | |__ /  \ _| |_
-        | |\/| | |  | |  __/ /\ \_   _|
-        | |  | | |__| | | / ____ \|_|
-        |_|  |_|\____/|_|/_/    \_\
-        """
+        banner = (
+            r"  __  __  ____  ______",
+            r" |  \/  |/ __ \|  ____/\    _ ",
+            r" | \  / | |  | | |__ /  \ _| |_ ",
+            r" | |\/| | |  | |  __/ /\ \_   _| ",
+            r" | |  | | |__| | | / ____ \|_| ",
+            r" |_|  |_|\____/|_|/_/    \_\ ",
+        )
 
-        console.print(Panel(Padding(banner, (1,3)), expand=False, style="blink red"))
+        console.print(Panel(Padding("\n".join(banner), (1, 1, 1, 1)), expand=False, style="blink red"))
 
-    def set_covariates(self, sample_cov: npt.ArrayLike | str, covariates_names: str | list[str] | None=None) -> None:
+    def set_covariates(self, sample_cov: npt.ArrayLike | str, covariates_names: str | list[str] | None = None) -> None:
         """
         Parameters
         ----------
@@ -112,9 +110,7 @@ class EntryPoint:
         if isinstance(sample_cov, str):
             sample_cov = [sample_cov]
 
-        if isinstance(sample_cov, list) and all(
-            isinstance(c, str) for c in sample_cov
-        ):
+        if isinstance(sample_cov, list) and all(isinstance(c, str) for c in sample_cov):
             if not all(c in self.data_opts["samples_metadata"][0].columns for c in sample_cov):
                 msg = "sample_cov provided as string but not found in samples_metadata"
                 raise ValueError(msg)
@@ -122,9 +118,7 @@ class EntryPoint:
             for g in range(self.dimensionalities["G"]):
                 samples4group = self.data_opts["samples_names"][g]
                 df = self.data_opts["samples_metadata"][g]
-                sample_cov_list.append(
-                    np.vstack([df[c][samples4group] for c in sample_cov]).transpose()
-                )
+                sample_cov_list.append(np.vstack([df[c][samples4group] for c in sample_cov]).transpose())
             sample_cov = sample_cov_list
 
         if not isinstance(sample_cov, list):
@@ -149,15 +143,13 @@ class EntryPoint:
                 if isinstance(sample_cov[g], pd.DataFrame):
                     sample_cov[g] = sample_cov[g].values
                 else:
-                    msg ="`sample_cov` is not a numpy.ndarray or a pandas dataframe"
+                    msg = "`sample_cov` is not a numpy.ndarray or a pandas dataframe"
                     logger.error(msg)
                     raise ValueError(msg)
             sample_cov[g] = sample_cov[g].astype(np.float64)
 
         N = [len(x) for x in self.data_opts["samples_names"]]
-        if not all(
-            sample_cov[g].shape[0] == N[g] for g in range(self.dimensionalities["G"])
-        ):
+        if not all(sample_cov[g].shape[0] == N[g] for g in range(self.dimensionalities["G"])):
             for g in range(self.dimensionalities["G"]):
                 console.print(
                     f"Error, number of rows in sample covariates does not match number of samples in input data (N={sample_cov[g].shape[0]} vs. N={N[g]})"
@@ -178,14 +170,14 @@ class EntryPoint:
         if covariates_names is None:
             console.print("Covariates names not provided, using default naming convention:")
             console.print("- covariate1, ..., covariateC")
-            self.smooth_opts["covariates_names"] = [
-                f"covariate{c}" for c in range(self.dimensionalities["C"])
-            ]
+            self.smooth_opts["covariates_names"] = [f"covariate{c}" for c in range(self.dimensionalities["C"])]
         else:
             match covariates_names:
                 case str() if self.dimensionalities["C"] == 1:
                     covariates_names = [covariates_names]
-                case list() if len(covariates_names) == self.dimensionalities["C"] and all(isinstance(c, str) for c in covariates_names):
+                case list() if len(covariates_names) == self.dimensionalities["C"] and all(
+                    isinstance(c, str) for c in covariates_names
+                ):
                     pass
                 case _:
                     msg = "`Covariates_names` must be the same length as the number of covariates"
@@ -193,7 +185,6 @@ class EntryPoint:
             self.smooth_opts["covariates_names"] = covariates_names
 
         self.sample_cov = sample_cov
-
 
     def set_data_matrix(
         self,
@@ -242,9 +233,7 @@ class EntryPoint:
                     if isinstance(data[m][p], pd.DataFrame):
                         data[m][p] = data[m][p].values
                     else:
-                        print(
-                            "Error, input data is not a numpy.ndarray or a pandas dataframe"
-                        )
+                        print("Error, input data is not a numpy.ndarray or a pandas dataframe")
                         sys.stdout.flush()
                         sys.exit()
                 if config.use_float32:
@@ -255,9 +244,7 @@ class EntryPoint:
         # Save dimensionalities
         M = self.dimensionalities["M"] = len(data)
         G = self.dimensionalities["G"] = len(data[0])
-        N = self.dimensionalities["N"] = [
-            data[0][p].shape[0] for p in range(len(data[0]))
-        ]
+        N = self.dimensionalities["N"] = [data[0][p].shape[0] for p in range(len(data[0]))]
         D = self.dimensionalities["D"] = [data[m][0].shape[1] for m in range(len(data))]
 
         # Define views names
@@ -266,22 +253,20 @@ class EntryPoint:
             console.print("- view1, view2, ..., viewM\n")
             self.data_opts["views_names"] = ["view" + str(m) for m in range(M)]
         else:
-            assert (
-                len(views_names) == self.dimensionalities["M"]
-            ), "Length of views names is not the same as the number of views"
+            assert len(views_names) == self.dimensionalities["M"], (
+                "Length of views names is not the same as the number of views"
+            )
             self.data_opts["views_names"] = views_names
 
         # Define features names
         if features_names is None:
             console.print("Features names not provided, using default naming convention:")
             console.print("- feature1_view1, featureD_viewM\n")
-            self.data_opts["features_names"] = [
-                [f"feature{d}_view{m}" for d in range(D[m])] for m in range(M)
-            ]
+            self.data_opts["features_names"] = [[f"feature{d}_view{m}" for d in range(D[m])] for m in range(M)]
         else:
-            assert (
-                len(features_names) == self.dimensionalities["M"]
-            ), "views_names must a nested list with length equivalent to the number of views"
+            assert len(features_names) == self.dimensionalities["M"], (
+                "views_names must a nested list with length equivalent to the number of views"
+            )
             self.data_opts["features_names"] = features_names
 
         # Define groups names
@@ -290,43 +275,37 @@ class EntryPoint:
             console.print("- group1, group2, ..., groupG\n")
             self.data_opts["groups_names"] = ["group" + str(g) for g in range(G)]
         else:
-            assert (
-                len(groups_names) == self.dimensionalities["G"]
-            ), "Length of groups names is not the same as the number of groups"
+            assert len(groups_names) == self.dimensionalities["G"], (
+                "Length of groups names is not the same as the number of groups"
+            )
             self.data_opts["groups_names"] = groups_names
 
         # Define samples names
         if samples_names is None:
             console.print("Samples names not provided, using default naming convention:")
-            console.print(
-                "- sample1_group1, sample2_group1, sample1_group2, ..., sampleN_groupG\n"
-            )
-            self.data_opts["samples_names"] = [
-                ["sample%d_group%d" % (n, g) for n in range(N[g])] for g in range(G)
-            ]
+            console.print("- sample1_group1, sample2_group1, sample1_group2, ..., sampleN_groupG\n")
+            self.data_opts["samples_names"] = [["sample%d_group%d" % (n, g) for n in range(N[g])] for g in range(G)]
         else:
-            assert (
-                len(samples_names) == self.dimensionalities["G"]
-            ), "samples_names must a nested list with length equivalent to the number of groups"
+            assert len(samples_names) == self.dimensionalities["G"], (
+                "samples_names must a nested list with length equivalent to the number of groups"
+            )
             self.data_opts["samples_names"] = samples_names
 
         # Check for duplicated entries
-        assert len(self.data_opts["groups_names"]) == len(
-            set(self.data_opts["groups_names"])
-        ), "Duplicated groups names"
-        assert len(self.data_opts["views_names"]) == len(
-            set(self.data_opts["views_names"])
-        ), "Duplicated views names"
+        assert len(self.data_opts["groups_names"]) == len(set(self.data_opts["groups_names"])), (
+            "Duplicated groups names"
+        )
+        assert len(self.data_opts["views_names"]) == len(set(self.data_opts["views_names"])), "Duplicated views names"
 
         tmp = list(chain(*self.data_opts["samples_names"]))
-        assert len(tmp) == len(
-            set(tmp)
-        ), "Duplicated entries found in samples_names. Make sure that samples names are not duplicated across different groups"
+        assert len(tmp) == len(set(tmp)), (
+            "Duplicated entries found in samples_names. Make sure that samples names are not duplicated across different groups"
+        )
 
         tmp = list(chain(*self.data_opts["features_names"]))
-        assert len(tmp) == len(
-            set(tmp)
-        ), "Duplicated entries found in features_names. Make sure that feature names are not duplicated across different views"
+        assert len(tmp) == len(set(tmp)), (
+            "Duplicated entries found in features_names. Make sure that feature names are not duplicated across different views"
+        )
 
         # Set samples groups (list with dimensionality N where each row is the corresponding group name)
         # self.data_opts['samples_groups'] = [list(samples_names_dict.keys())[i] for i in range(len(self.data_opts['groups_names'])) for n in range(len(list(samples_names_dict.values())[i]))]
@@ -334,12 +313,8 @@ class EntryPoint:
         # WHY THIS DOES NOT WORK?? asd = [ [self.data_opts['groups_names'][g]]*N[g] for g in range(G) ]
         self.data_opts["samples_groups"] = []
         for g in range(G):
-            self.data_opts["samples_groups"].append(
-                [self.data_opts["groups_names"][g]] * N[g]
-            )
-        self.data_opts["samples_groups"] = np.concatenate(
-            self.data_opts["samples_groups"]
-        )
+            self.data_opts["samples_groups"].append([self.data_opts["groups_names"][g]] * N[g])
+        self.data_opts["samples_groups"] = np.concatenate(self.data_opts["samples_groups"])
 
         # If everything successful, print verbose message
         for m in range(M):
@@ -350,9 +325,7 @@ class EntryPoint:
         console.print("\n")
 
         # Store intercepts
-        self.intercepts = [
-            [np.nanmean(data[m][g], axis=0) for g in range(G)] for m in range(M)
-        ]
+        self.intercepts = [[np.nanmean(data[m][g], axis=0) for g in range(G)] for m in range(M)]
 
         # Concatenate groups in data
         for m in range(len(data)):
@@ -366,18 +339,14 @@ class EntryPoint:
             likelihoods = guess_likelihoods(data)
         elif isinstance(likelihoods, str):
             likelihoods = [likelihoods]
-        assert (
-            len(likelihoods) == self.dimensionalities["M"]
-        ), "Please specify one likelihood for each view"
-        assert set(likelihoods).issubset(
-            {"gaussian", "bernoulli", "poisson"}
-        ), "Available likelihoods are 'gaussian','bernoulli', 'poisson'"
+        assert len(likelihoods) == self.dimensionalities["M"], "Please specify one likelihood for each view"
+        assert set(likelihoods).issubset({"gaussian", "bernoulli", "poisson"}), (
+            "Available likelihoods are 'gaussian','bernoulli', 'poisson'"
+        )
         self.likelihoods = likelihoods
 
         # Process the data (center, scaling, etc.)
-        self.data = process_data(
-            data, likelihoods, self.data_opts, self.data_opts["samples_groups"]
-        )
+        self.data = process_data(data, likelihoods, self.data_opts, self.data_opts["samples_groups"])
 
     def set_data_df(self, data, likelihoods=None):
         """Method to input the data in a long data.frame format
@@ -397,9 +366,7 @@ class EntryPoint:
             # console.print("Data options not defined before setting the data, using default values...")
             self.set_data_options()
 
-        assert isinstance(
-            data, pd.DataFrame
-        ), "'data' has to be an instance of pd.DataFrame"
+        assert isinstance(data, pd.DataFrame), "'data' has to be an instance of pd.DataFrame"
 
         if "group" not in data.columns:
             console.print(
@@ -418,22 +385,18 @@ class EntryPoint:
         assert "value" in data.columns, "'data' has to contain the column 'value'"
 
         # Check for duplicated entries
-        assert (
-            data.duplicated(subset=["group", "view", "feature", "sample"]).sum() == 0
-        ), "Duplicated entries found in the data"
+        assert data.duplicated(subset=["group", "view", "feature", "sample"]).sum() == 0, (
+            "Duplicated entries found in the data"
+        )
 
         # Define feature group names and sample group names
         self.data_opts["views_names"] = np.sort(data["view"].unique()).tolist()
         self.data_opts["groups_names"] = np.sort(data["group"].unique()).tolist()
         self.data_opts["features_names"] = (
-            data.groupby(["view"])["feature"]
-            .unique()[self.data_opts["views_names"]]
-            .tolist()
+            data.groupby(["view"])["feature"].unique()[self.data_opts["views_names"]].tolist()
         )
         self.data_opts["samples_names"] = (
-            data.groupby(["group"])["sample"]
-            .unique()[self.data_opts["groups_names"]]
-            .tolist()
+            data.groupby(["group"])["sample"].unique()[self.data_opts["groups_names"]].tolist()
         )
 
         # Convert data frame to list of matrices
@@ -443,21 +406,12 @@ class EntryPoint:
         data_matrix = data.pivot(index="sample", columns="feature", values="value")
 
         # Sort rows and columns of the matrix according to the sample and feature names
-        features_names_tmp = (
-            data.groupby(["view"])["feature"]
-            .unique()[self.data_opts["views_names"]]
-            .tolist()
-        )
+        features_names_tmp = data.groupby(["view"])["feature"].unique()[self.data_opts["views_names"]].tolist()
         data_matrix = data_matrix.loc[np.concatenate(self.data_opts["samples_names"])]
         data_matrix = data_matrix[[y for x in features_names_tmp for y in x]]
 
         # Split into a list of views, each view being a matrix
-        tmp_features = (
-            data[["feature", "view"]]
-            .drop_duplicates()
-            .groupby("view")["feature"]
-            .nunique()
-        )
+        tmp_features = data[["feature", "view"]].drop_duplicates().groupby("view")["feature"].nunique()
         nfeatures = tmp_features.loc[self.data_opts["views_names"]]
         data_matrix = np.split(data_matrix, np.cumsum(nfeatures)[:-1], axis=1)
 
@@ -474,26 +428,14 @@ class EntryPoint:
         self.dimensionalities = {}
         self.dimensionalities["M"] = M = len(self.data_opts["views_names"])
         # self.dimensionalities["N"] = len(self.data_opts['samples_names'])
-        self.dimensionalities["N"] = N = len(
-            np.concatenate(self.data_opts["samples_names"])
-        )
+        self.dimensionalities["N"] = N = len(np.concatenate(self.data_opts["samples_names"]))
         self.dimensionalities["G"] = G = len(self.data_opts["groups_names"])
-        self.dimensionalities["D"] = D = [
-            len(x) for x in self.data_opts["features_names"]
-        ]
+        self.dimensionalities["D"] = D = [len(x) for x in self.data_opts["features_names"]]
 
         # Count the number of features per view and the number of samples per group
-        tmp_samples = (
-            data[["sample", "group", "view"]]
-            .drop_duplicates()
-            .groupby(["group", "view"])["sample"]
-            .nunique()
-        )
+        tmp_samples = data[["sample", "group", "view"]].drop_duplicates().groupby(["group", "view"])["sample"].nunique()
         tmp_features = (
-            data[["feature", "group", "view"]]
-            .drop_duplicates()
-            .groupby(["group", "view"])["feature"]
-            .nunique()
+            data[["feature", "group", "view"]].drop_duplicates().groupby(["group", "view"])["feature"].nunique()
         )
 
         # If everything successful, print verbose message
@@ -518,38 +460,31 @@ class EntryPoint:
         self.intercepts = [None for m in range(M)]
         tmp = [len(x) for x in self.data_opts["samples_names"]]
         for m in range(M):
-            self.intercepts[m] = [
-                np.nanmean(x, axis=0)
-                for x in np.split(data_matrix[m], np.cumsum(tmp)[:-1], axis=0)
-            ]
+            self.intercepts[m] = [np.nanmean(x, axis=0) for x in np.split(data_matrix[m], np.cumsum(tmp)[:-1], axis=0)]
 
         # Define likelihoods
         if likelihoods is None:
             likelihoods = guess_likelihoods(data_matrix)
         elif isinstance(likelihoods, str):
             likelihoods = [likelihoods]
-        assert (
-            len(likelihoods) == self.dimensionalities["M"]
-        ), "Please specify one likelihood for each view"
-        assert set(likelihoods).issubset(
-            set(["gaussian", "bernoulli", "poisson"])
-        ), "Available likelihoods are 'gaussian','bernoulli', 'poisson'"
+        assert len(likelihoods) == self.dimensionalities["M"], "Please specify one likelihood for each view"
+        assert set(likelihoods).issubset(set(["gaussian", "bernoulli", "poisson"])), (
+            "Available likelihoods are 'gaussian','bernoulli', 'poisson'"
+        )
         self.likelihoods = likelihoods
 
         # Process the data (i.e center, scale, etc.)
-        self.data = process_data(
-            data_matrix, likelihoods, self.data_opts, self.data_opts["samples_groups"]
-        )
+        self.data = process_data(data_matrix, likelihoods, self.data_opts, self.data_opts["samples_groups"])
 
     def set_data_from_anndata(
         self,
         adata: ad.AnnData,
-        groups_label: str | None=None,
-        use_raw: bool=False,
-        use_layer: str | None=None,
+        groups_label: str | None = None,
+        use_raw: bool = False,
+        use_layer: str | None = None,
         likelihoods=None,
-        features_subset: str | None=None,
-        save_metadata: bool=False,
+        features_subset: str | None = None,
+        save_metadata: bool = False,
     ):
         """Method to input the data in AnnData format
 
@@ -584,10 +519,10 @@ class EntryPoint:
         n_groups = 1  # no grouping by default
         if groups_label is not None:
             if not isinstance(groups_label, str):
-                msg="Error: groups_label should be a string present in the observations column names"
+                msg = "Error: groups_label should be a string present in the observations column names"
                 raise ValueError(msg)
             if groups_label not in adata.obs.columns:
-                msg=(f"Error: {groups_label} is not in observations names")
+                msg = f"Error: {groups_label} is not in observations names"
                 raise ValueError(msg)
             n_groups = adata.obs[groups_label].unique().shape[0]
 
@@ -602,7 +537,7 @@ class EntryPoint:
                 if features_subset is not None:
                     data[0] = data[0][:, adata.var[features_subset].values]
             else:
-                msg=f"Error: Layer {use_layer} does not exist"
+                msg = f"Error: Layer {use_layer} does not exist"
                 raise ValueError(msg)
         elif use_raw:
             adata_raw_dense = np.array(adata.raw[:, adata.var_names].X.todense())
@@ -623,30 +558,20 @@ class EntryPoint:
         M = self.dimensionalities["M"] = 1
         G = self.dimensionalities["G"] = n_groups
         N = self.dimensionalities["N"] = adata.shape[0]
-        D = self.dimensionalities["D"] = [
-            data[0].shape[1]
-        ]  # Feature may have been filtered
-        n_grouped = (
-            [adata.shape[0]]
-            if n_groups == 1
-            else adata.obs.groupby(groups_label).size().values
-        )
+        D = self.dimensionalities["D"] = [data[0].shape[1]]  # Feature may have been filtered
+        n_grouped = [adata.shape[0]] if n_groups == 1 else adata.obs.groupby(groups_label).size().values
 
         # Define views names and features names and metadata
         self.data_opts["views_names"] = ["rna"]
 
         if features_subset is not None:
-            self.data_opts["features_names"] = [
-                adata.var_names[adata.var[features_subset]]
-            ]
+            self.data_opts["features_names"] = [adata.var_names[adata.var[features_subset]]]
         else:
             self.data_opts["features_names"] = [adata.var_names]
 
         if save_metadata:
             if features_subset is not None:
-                self.data_opts["features_metadata"] = [
-                    adata.var[adata.var[features_subset]]
-                ]
+                self.data_opts["features_metadata"] = [adata.var[adata.var[features_subset]]]
             else:
                 self.data_opts["features_metadata"] = [adata.var]
 
@@ -665,10 +590,7 @@ class EntryPoint:
             # List of names of groups, i.e. [group1, group2, ...]
             self.data_opts["groups_names"] = [
                 str(g)
-                for g in adata.obs.reset_index(drop=False)
-                .groupby(groups_label)[groups_label]
-                .apply(list)
-                .index.values
+                for g in adata.obs.reset_index(drop=False).groupby(groups_label)[groups_label].apply(list).index.values
             ]
             # Nested list of names of samples, one inner list per group, i.e. [[group1_sample1, group1_sample2, ...], ...]
             self.data_opts["samples_names"] = (
@@ -679,19 +601,17 @@ class EntryPoint:
                 .tolist()
             )
             # List of names of groups for samples ordered as they are in the original data, i.e. [group2, group1, group1, ...]
-            self.data_opts["samples_groups"] = adata.obs[groups_label].values.astype(
-                str
-            )
+            self.data_opts["samples_groups"] = adata.obs[groups_label].values.astype(str)
             if save_metadata:
                 # List of metadata tables for each group of samples
-                self.data_opts["samples_metadata"] = [
-                    g for _, g in adata.obs.groupby(groups_label)
-                ]
+                self.data_opts["samples_metadata"] = [g for _, g in adata.obs.groupby(groups_label)]
 
         # If everything successful, print verbose message
         for m in range(M):
             for g in range(G):
-                console.print(f"Loaded view='{self.data_opts['views_names'][m]!s}' group='{self.data_opts['groups_names'][g]!s}' with N={n_grouped[g]} samples and D={D[m]} features...")
+                console.print(
+                    f"Loaded view='{self.data_opts['views_names'][m]!s}' group='{self.data_opts['groups_names'][g]!s}' with N={n_grouped[g]} samples and D={D[m]} features..."
+                )
 
         # Store intercepts (it is for one view only)
         self.intercepts = [[]]
@@ -701,9 +621,7 @@ class EntryPoint:
             likelihoods = guess_likelihoods(data)
         elif isinstance(likelihoods, str):
             likelihoods = [likelihoods]
-        assert (
-            len(likelihoods) == self.dimensionalities["M"]
-        ), "Please specify one likelihood for each view"
+        assert len(likelihoods) == self.dimensionalities["M"], "Please specify one likelihood for each view"
         if not set(likelihoods).issubset({"gaussian", "bernoulli", "poisson"}):
             msg = "Available likelihoods are 'gaussian','bernoulli', 'poisson'"
             raise ValueError(msg)
@@ -713,14 +631,11 @@ class EntryPoint:
         for g in self.data_opts["groups_names"]:
             samples_idx = np.where(np.array(self.data_opts["samples_groups"]) == g)[0]
             self.intercepts[0].append(np.nanmean(data[0][samples_idx, :], axis=0))
-        self.data = process_data(
-            data, likelihoods, self.data_opts, self.data_opts["samples_groups"]
-        )
-
+        self.data = process_data(data, likelihoods, self.data_opts, self.data_opts["samples_groups"])
 
     def set_train_options(
         self,
-        iter: int=1000,
+        iter: int = 1000,
         startELBO=1,
         freqELBO=1,
         startSparsity=50,
@@ -743,9 +658,7 @@ class EntryPoint:
         """Set training options"""
 
         # Sanity checks
-        assert hasattr(
-            self, "model_opts"
-        ), "Model options have to be defined before training options"
+        assert hasattr(self, "model_opts"), "Model options have to be defined before training options"
 
         self.train_opts = {}
 
@@ -800,9 +713,7 @@ class EntryPoint:
         self.train_opts["start_drop"] = int(startDrop)
         self.train_opts["freq_drop"] = int(freqDrop)
         if (dropR2 is not None) & (verbose is True):
-            console.print(
-                f"Dropping factors with minimum threshold of {dropR2:.2f}% variance explained\n"
-                )
+            console.print(f"Dropping factors with minimum threshold of {dropR2:.2f}% variance explained\n")
 
         if (dropR2 is not None) & (self.dimensionalities["N"] > 1e4):
             console.print(
@@ -813,9 +724,7 @@ class EntryPoint:
 
         # Tolerance level for convergence
         if tolerance is not None:
-            console.print(
-                "Warning: tolerance argument is depreciated, use the 'convergence_mode' argument instead"
-            )
+            console.print("Warning: tolerance argument is depreciated, use the 'convergence_mode' argument instead")
             self.train_opts["tolerance"] = float(tolerance)
 
         # Convergence mode
@@ -865,7 +774,7 @@ class EntryPoint:
                     msg = "The schedule must contain 'AlphaZ' if ARD prior on Z is activated"
                     raise ValueError(msg)
             if self.model_opts["ard_weights"]:
-                if  "AlphaW" not in schedule:
+                if "AlphaW" not in schedule:
                     msg = "The schedule must contain 'AlphaW' if ARD prior on W is activated"
                     raise ValueError(msg)
             if self.model_opts["spikeslab_factors"]:
@@ -898,9 +807,7 @@ class EntryPoint:
         # If to save the partially trained model when the training is interrupted
         self.train_opts["save_interrupted"] = save_interrupted
 
-    def set_stochastic_options(
-        self, learning_rate=1.0, forgetting_rate=0.0, batch_size=1.0, start_stochastic=1
-    ):
+    def set_stochastic_options(self, learning_rate=1.0, forgetting_rate=0.0, batch_size=1.0, start_stochastic=1):
         # Sanity checks
         if hasattr(self, "smooth_opts"):
             console.print(
@@ -966,18 +873,16 @@ class EntryPoint:
         """
 
         # Sanity checks
-        assert hasattr(
-            self, "smooth_opts"
-        ), "Please run set_covariates() before set_smooth_options()"
-        assert hasattr(
-            self, "model_opts"
-        ), "Model options not defined. Please run set_model_opts() before set_smooth_options()"
-        assert hasattr(
-            self, "train_opts"
-        ), "Training options not defined. Please run set_train_opts() before set_smooth_options()"
-        assert (
-            self.sample_cov is not None
-        ), "Before setting smooth options, you need to define the covariates with set_covariates"
+        assert hasattr(self, "smooth_opts"), "Please run set_covariates() before set_smooth_options()"
+        assert hasattr(self, "model_opts"), (
+            "Model options not defined. Please run set_model_opts() before set_smooth_options()"
+        )
+        assert hasattr(self, "train_opts"), (
+            "Training options not defined. Please run set_train_opts() before set_smooth_options()"
+        )
+        assert self.sample_cov is not None, (
+            "Before setting smooth options, you need to define the covariates with set_covariates"
+        )
 
         # activate GP prior on factors
         self.smooth_opts["GP_factors"] = True
@@ -986,9 +891,7 @@ class EntryPoint:
         self.smooth_opts["scale_cov"] = scale_cov
         # if (scale_cov): print("Scaling covariates to unit variance...\n")
         if self.smooth_opts["scale_cov"]:
-            self.sample_cov = (
-                self.sample_cov - self.sample_cov.mean(axis=0)
-            ) / self.sample_cov.std(axis=0)
+            self.sample_cov = (self.sample_cov - self.sample_cov.mean(axis=0)) / self.sample_cov.std(axis=0)
 
         # Define at which iteration to start optimizing the lengthscales, how many grid points to use for the lengthscales and at which frequency to optimize
         start_opt = max(0, start_opt)
@@ -1038,9 +941,7 @@ class EntryPoint:
         # Set a minium number of training iterations based on start of optimization and warping
         self.train_opts["min_iter"] = self.smooth_opts["start_opt"]
         if self.smooth_opts["warping"]:
-            self.train_opts["min_iter"] = (
-                max(self.train_opts["min_iter"], self.smooth_opts["warping_freq"]) + 1
-            )
+            self.train_opts["min_iter"] = max(self.train_opts["min_iter"], self.smooth_opts["warping_freq"]) + 1
 
         # Sparse GPs
         if sparseGP is True:
@@ -1059,9 +960,7 @@ class EntryPoint:
             # Sparse GPs: set the number of inducing points
             if frac_inducing is None:
                 frac_inducing = 0.75
-            assert (
-                frac_inducing > 0 and frac_inducing < 1
-            ), "Fraction of inducing points should be in (0,1)."
+            assert frac_inducing > 0 and frac_inducing < 1, "Fraction of inducing points should be in (0,1)."
             n_inducing = int(
                 max(frac_inducing * self.dimensionalities["N"], 100)
             )  # note: groups are already concatenated, N is total number of samples
@@ -1085,9 +984,7 @@ class EntryPoint:
             ix = self.train_opts["schedule"].index("Z")
             self.train_opts["schedule"].insert(ix, "U")
 
-            console.print(
-                "sparseGP set to True: using sparse Gaussian Process to speed up the training procedure"
-            )
+            console.print("sparseGP set to True: using sparse Gaussian Process to speed up the training procedure")
         else:
             self.smooth_opts["sparseGP"] = False
 
@@ -1144,11 +1041,10 @@ class EntryPoint:
             f"- Spike-and-slab prior on the factors: {spikeslab_factors!s}",
             f"- Spike-and-slab prior on the weights: {spikeslab_weights!s}",
             "Likelihoods:",
+            sep="\n",
         )
         for m in range(self.dimensionalities["M"]):
-            console.print(
-                f"- View {m} ({self.data_opts['views_names'][m]!s}): {self.likelihoods[m]!s}"
-            )
+            console.print(f"- View {m} ({self.data_opts['views_names'][m]!s}): [green]{self.likelihoods[m]!s}[/green]")
 
     def set_data_options(
         self,
@@ -1185,28 +1081,24 @@ class EntryPoint:
         minimum_number_of_samples_to_be_useful = 15
         # Sanity checks
         if not hasattr(self, "train_opts"):
-            msg="Training options not defined"
+            msg = "Training options not defined"
             raise AttributeError(msg)
         if not hasattr(self, "model_opts"):
-            msg="Model options not defined"
+            msg = "Model options not defined"
             raise AttributeError(msg)
         if not hasattr(self, "dimensionalities"):
-            msg="Dimensionalities are not defined"
+            msg = "Dimensionalities are not defined"
             raise AttributeError(msg)
 
         if hasattr(self, "smooth_opts"):
             if len(self.smooth_opts) <= 2:
                 msg = "Smooth covariates applied but smooth options not defined. Please define set_smooth_options() before build()"
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
         if any(np.array(self.dimensionalities["D"]) < minimum_number_of_samples_to_be_useful):
             console.print(
                 f"Warning: some view(s) have fewer than {minimum_number_of_samples_to_be_useful} features, MOFA won't be able to learn meaningful factors for these view(s)..."
             )
-        _, counts = np.unique(
-            self.data_opts["samples_groups"], axis=0, return_counts=True
-        )
+        _, counts = np.unique(self.data_opts["samples_groups"], axis=0, return_counts=True)
         if not hasattr(self, "smooth_opts"):
             if any(counts < minimum_number_of_samples_to_be_useful):
                 console.print(
@@ -1246,18 +1138,18 @@ class EntryPoint:
 
         # Sanity checks
         if not hasattr(self, "model_opts"):
-            msg="Model options not defined"
+            msg = "Model options not defined"
             raise AttributeError(msg)
         if not hasattr(self, "train_opts"):
-            msg="Train options not defined"
+            msg = "Train options not defined"
             raise AttributeError(msg)
         if not hasattr(self, "data_opts"):
-            msg="Data options not defined"
+            msg = "Data options not defined"
             raise AttributeError(msg)
 
         # Fetch training schedule (order of updates for the different nodes)
         if "schedule" in self.train_opts:
-            if {self.train_opts["schedule"]} != {self.model.getNodes().keys()}:
+            if not pd.Series(self.train_opts["schedule"]).isin(self.model.getNodes().keys()).all():
                 msg = "Some nodes defined in the training schedule are not present in the model, or viceversa"
                 raise ValueError(msg)
         else:
@@ -1275,22 +1167,22 @@ class EntryPoint:
         value_cutoff = 1  # max factor value
 
         for g in range(len(self.data_opts["groups_names"])):
-            idx = np.where(
-                np.array(self.data_opts["samples_groups"])
-                == self.data_opts["groups_names"][g]
-            )[0]
+            idx = np.where(np.array(self.data_opts["samples_groups"]) == self.data_opts["groups_names"][g])[0]
             Ztmp = Z[idx, :]  # is this by reference? apparently not
 
             # calculate outlier score
             z_score = np.absolute(Ztmp - Ztmp.mean(axis=0)) / np.std(Ztmp, axis=0)
 
             # mask outliers with np.nan
-            Ztmp[
-                (z_score > zscore_cutoff) & (np.absolute(Z[idx, :]) > value_cutoff)
-            ] = np.nan
+            Ztmp[(z_score > zscore_cutoff) & (np.absolute(Z[idx, :]) > value_cutoff)] = np.nan
             Z[idx, :] = Ztmp
 
-    def predict_factor(self, new_covariates: str | list[str] | None=None, uncertainty: bool=True, groups: str | Literal["all"]="all"):
+    def predict_factor(
+        self,
+        new_covariates: str | list[str] | None = None,
+        uncertainty: bool = True,
+        groups: str | Literal["all"] = "all",
+    ):
         """Predict factor values at new covariate values or in missing groups
 
         Parameters
@@ -1305,7 +1197,7 @@ class EntryPoint:
         """
 
         if not hasattr(self, "smooth_opts"):
-            msg="Using predict_factors requires the use of GP_factors, maybe you want to use impute instead?"
+            msg = "Using predict_factors requires the use of GP_factors, maybe you want to use impute instead?"
             warnings.warn(msg, stacklevel=2)
 
         if new_covariates is None:
@@ -1354,17 +1246,9 @@ class EntryPoint:
                 np.tile(new_covariates.transpose(), G).transpose(),
             ]
         )
-        oldix = np.concatenate(
-            [
-                np.where(np.all(np.equal(old[j, :], all_cov), axis=1))[0]
-                for j in range(old.shape[0])
-            ]
-        )
+        oldix = np.concatenate([np.where(np.all(np.equal(old[j, :], all_cov), axis=1))[0] for j in range(old.shape[0])])
         newidx = np.concatenate(
-            [
-                np.where(np.all(np.equal(new_cov[j, :], all_cov), axis=1))[0]
-                for j in range(new_cov.shape[0])
-            ]
+            [np.where(np.all(np.equal(new_cov[j, :], all_cov), axis=1))[0] for j in range(new_cov.shape[0])]
         )
 
         Z_new_mean = np.zeros([M * G, K])
@@ -1373,9 +1257,7 @@ class EntryPoint:
         for k in range(K):
             Kc_new = self.model.nodes["Sigma"].Kc.eval_at_newpoints_k(all_covariates, k)
             K_new_k = GP_param["scale"][k] * np.kron(Kg[k, :, :], Kc_new)
-            Sigma_new_k = K_new_k + (1 - GP_param["scale"][k]) * np.eye(
-                Kc_new.shape[0] * G
-            )
+            Sigma_new_k = K_new_k + (1 - GP_param["scale"][k]) * np.eye(Kc_new.shape[0] * G)
             if not self.smooth_opts["sparseGP"]:
                 Z_new_mean[:, k] = gpu_utils.dot(
                     K_new_k[newidx, :][:, oldix],
@@ -1400,9 +1282,7 @@ class EntryPoint:
                         Sigma_new_k[newidx, :][:, newidx]
                         - gpu_utils.dot(
                             K_new_k[newidx, :][:, oldix],
-                            gpu_utils.dot(
-                                Sigma_inv[k, :, :], K_new_k[oldix, :][:, newidx]
-                            ),
+                            gpu_utils.dot(Sigma_inv[k, :, :], K_new_k[oldix, :][:, newidx]),
                         )
                         + gpu_utils.dot(
                             K_new_k[newidx, :][:, oldix],
@@ -1410,9 +1290,7 @@ class EntryPoint:
                                 Sigma_inv[k, :, :],
                                 gpu_utils.dot(
                                     Z2,
-                                    gpu_utils.dot(
-                                        Sigma_inv[k, :, :], K_new_k[oldix, :][:, newidx]
-                                    ),
+                                    gpu_utils.dot(Sigma_inv[k, :, :], K_new_k[oldix, :][:, newidx]),
                                 ),
                             ),
                         )
@@ -1423,9 +1301,7 @@ class EntryPoint:
                         Sigma_new_k[newidx, :][:, newidx]
                         - gpu_utils.dot(
                             K_new_k[newidx, :][:, old_sub],
-                            gpu_utils.dot(
-                                Sigma_inv[k, :, :], K_new_k[old_sub, :][:, newidx]
-                            ),
+                            gpu_utils.dot(Sigma_inv[k, :, :], K_new_k[old_sub, :][:, newidx]),
                         )
                         + gpu_utils.dot(
                             K_new_k[newidx, :][:, old_sub],
@@ -1444,7 +1320,7 @@ class EntryPoint:
 
         if uncertainty:
             if any(Z_new_var < 0):
-                msg="Something went wrong in the prediction: variances of the predictive distribution are negative"
+                msg = "Something went wrong in the prediction: variances of the predictive distribution are negative"
                 raise ValueError(msg)
             self.Zpredictions = {
                 "mean": Z_new_mean,
@@ -1481,9 +1357,7 @@ class EntryPoint:
         # for non-gaussian likelihoods, convert from pseudodata space to observation space
         for m in range(len(pred_mean)):
             if self.model_opts["likelihoods"][m] == "bernoulli":
-                pred_mean[m] = np.round(
-                    np.exp(pred_mean[m]) / (1 + np.exp(pred_mean[m]))
-                )
+                pred_mean[m] = np.round(np.exp(pred_mean[m]) / (1 + np.exp(pred_mean[m])))
             elif self.model_opts["likelihoods"][m] == "poisson":
                 pred_mean[m] = np.round(np.log(1.0 + np.exp(pred_mean[m])))
 
@@ -1492,10 +1366,7 @@ class EntryPoint:
             W2 = [w["E2"] for w in self.model.nodes["W"].getExpectations()]
             Z2 = self.model.nodes["Z"].getExpectations()["E2"]
             Tau = [tau["E"] for tau in self.model.nodes["Tau"].getExpectations()]
-            pred_var = [
-                Z2.dot(W2[v].T) - (Z**2.0).dot(W[v].T ** 2.0) + 1.0 / Tau[v]
-                for v in range(len(W))
-            ]
+            pred_var = [Z2.dot(W2[v].T) - (Z**2.0).dot(W[v].T ** 2.0) + 1.0 / Tau[v] for v in range(len(W))]
             self.imputed_data = {"mean": pred_mean, "variance": pred_var}
         else:
             self.imputed_data = {"mean": pred_mean, "variance": None}
@@ -1508,25 +1379,25 @@ class EntryPoint:
 
         self.imputed = True  # change flag
 
-    def save(
-        self, outfile: Path | None=None, save_data=True, save_parameters=False, expectations=None
-    ):
+    def save(self, outfile: Path | None = None, save_data=True, save_parameters=False, expectations=None):
         """Save the model in an hdf5 file"""
         if outfile is not None and not isinstance(outfile, Path):
             outfile = Path(outfile)
         # Sanity checks
         if not hasattr(self, "data"):
-            msg="Data has to be defined before training the model"
+            msg = "Data has to be defined before training the model"
             raise ValueError(msg)
         if not hasattr(self, "model"):
-            msg="No trained model found"
+            msg = "No trained model found"
             raise ValueError(msg)
 
         # Use outfile from training options if an outfile to override it is not provided
         if outfile is None or outfile == "":
             if self.train_opts["outfile"] is None or self.train_opts["outfile"] == "":
                 outfile = Path("/") / "tmp" / f"mofa_{strftime('%Y%m%d-%H%M%S')}.hdf5"
-                console.print(f"No output file name provided as a training options or to the save method. Saving to {outfile!s}")
+                console.print(
+                    f"No output file name provided as a training options or to the save method. Saving to {outfile!s}"
+                )
             else:
                 outfile = self.train_opts["outfile"]
 
@@ -1534,9 +1405,7 @@ class EntryPoint:
             console.print(f"Warning: Output file {outfile!s} already exists, it will be replaced")
 
         # Create output directory
-        if not os.path.isdir(os.path.dirname(outfile)) and (
-            os.path.dirname(outfile) != ""
-        ):
+        if not os.path.isdir(os.path.dirname(outfile)) and (os.path.dirname(outfile) != ""):
             console.print("Output directory does not exist, creating it...")
             os.makedirs(os.path.dirname(outfile))
         console.print(f"Saving model in {outfile!s}...")
@@ -1563,16 +1432,8 @@ class EntryPoint:
             views_names=self.data_opts["views_names"],
             groups_names=self.data_opts["groups_names"],
             covariates_names=covariates_names,
-            samples_metadata=(
-                self.data_opts["samples_metadata"]
-                if "samples_metadata" in self.data_opts
-                else None
-            ),
-            features_metadata=(
-                self.data_opts["features_metadata"]
-                if "features_metadata" in self.data_opts
-                else None
-            ),
+            samples_metadata=(self.data_opts["samples_metadata"] if "samples_metadata" in self.data_opts else None),
+            features_metadata=(self.data_opts["features_metadata"] if "features_metadata" in self.data_opts else None),
             compression_level=9,
         )
 
@@ -1623,9 +1484,7 @@ class EntryPoint:
 
         # Save imputed data
         if self.imputed:
-            tmp.saveImputedData(
-                self.imputed_data["mean"], self.imputed_data["variance"]
-            )
+            tmp.saveImputedData(self.imputed_data["mean"], self.imputed_data["variance"])
 
         # Save predictions
         if self.Zcompleted:
@@ -1730,13 +1589,11 @@ def mofa(
         return a copy of AnnData instead of writing to the provided object
     """
 
-    ent = EntryPoint()
+    ent = entry_point()
 
     lik = [likelihood] if likelihood is not None else None
 
-    ent.set_data_options(
-        scale_views=scale_views, scale_groups=scale_groups, use_float32=use_float32
-    )
+    ent.set_data_options(scale_views=scale_views, scale_groups=scale_groups, use_float32=use_float32)
     ent.set_data_from_anndata(
         adata,
         groups_label=groups_label,
@@ -1780,21 +1637,15 @@ def mofa(
             adata = adata.copy()
 
         with h5py.File(outfile, "r") as f:
-            z = np.concatenate(
-                [v[:, :] for k, v in f["expectations"]["Z"].items()], axis=1
-            ).T
+            z = np.concatenate([v[:, :] for k, v in f["expectations"]["Z"].items()], axis=1).T
             if groups_label:
                 # Samples are grouped in sample groups
                 # so the rows of the Z matrix have to be re-ordered
-                zs = np.concatenate(
-                    [v[:] for k, v in f["samples"].items()], axis=0
-                ).astype(str)
+                zs = np.concatenate([v[:] for k, v in f["samples"].items()], axis=0).astype(str)
                 z = pd.DataFrame(z, index=zs).loc[adata.obs_names.values].to_numpy()
             adata.obsm["X_mofa"] = z
 
-            w = np.concatenate(
-                [v[:, :] for k, v in f["expectations"]["W"].items()], axis=1
-            ).T
+            w = np.concatenate([v[:, :] for k, v in f["expectations"]["W"].items()], axis=1).T
         if features_subset is None:
             # If all the features were used in training
             adata.varm["LFs"] = w
@@ -1805,8 +1656,6 @@ def mofa(
         if copy:
             return adata
         elif features_subset is None:
-            console.print(
-                "Saved MOFA embeddings in adata.obsm['X_mofa'] slot and their loadings in adata.varm['LFs']."
-            )
+            console.print("Saved MOFA embeddings in adata.obsm['X_mofa'] slot and their loadings in adata.varm['LFs'].")
         else:
             console.print("Saved MOFA embeddings in adata.obsm['X_mofa'] slot.")

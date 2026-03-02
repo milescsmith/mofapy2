@@ -172,9 +172,7 @@ class ThetaZ_Node(Beta_Unobserved_Variational_Node):
             tmp1 = S[mask, :].sum(axis=0)
 
             Qa[c, :] += ro * (self.Ppar["a"][c, :] + coeff * tmp1)
-            Qb[c, :] += ro * (
-                self.Ppar["b"][c, :] + coeff * (S[mask, :].shape[0] - tmp1)
-            )
+            Qb[c, :] += ro * (self.Ppar["b"][c, :] + coeff * (S[mask, :].shape[0] - tmp1))
 
         return Qa, Qb
 
