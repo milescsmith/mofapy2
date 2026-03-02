@@ -4,12 +4,12 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from mofapy2.run.entry_point import entry_point
+from mofapy2.run.entry_point import EntryPoint
 
 
 class TestBuildModel:
     def test_build_basic(self):
-        ent = entry_point()
+        ent = EntryPoint()
         ent.set_data_options(scale_groups=False, scale_views=False)
         views_names = ["view1", "view2"]
         groups_names = ["groupA", "groupB"]

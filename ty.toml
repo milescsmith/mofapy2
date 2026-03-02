@@ -1,0 +1,9 @@
+[environment]
+python = ".venv"
+python-version = "3.12"
+root = ["./src"]
+
+[rules]
+# the next two ruls are something that ty ALWAYS gets wrong
+invalid-assignment = "ignore"
+not-subscriptable = "ignore"
