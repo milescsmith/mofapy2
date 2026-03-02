@@ -42,9 +42,7 @@ class Multiview_Node(Node):
         # assert len(kwargs.values()) == len(self.activeM), "The markov blanket of a multiview node should be a dictionary where the key is the name of the node and the value is a list of nodes of length M"
         for k, v in kwargs.items():
             for m in self.activeM:
-                self.nodes[m].addMarkovBlanket(
-                    **{k: (v.getNodes()[m] if isinstance(v, Multiview_Node) else v)}
-                )
+                self.nodes[m].addMarkovBlanket(**{k: (v.getNodes()[m] if isinstance(v, Multiview_Node) else v)})
 
         # for k,v in kwargs.items():
         #     for m in self.activeM:
@@ -102,9 +100,7 @@ class Multiview_Node(Node):
         m: iterable
             views to update
         """
-        assert np.all(
-            m in self.activeM
-        ), "Trying to update the dimensionality of a node that doesnt exist in a view"
+        assert np.all(m in self.activeM), "Trying to update the dimensionality of a node that doesnt exist in a view"
         M = self.activeM if m is None else m
         for m in M:
             self.nodes[m].updateDim(axis, new_dim)

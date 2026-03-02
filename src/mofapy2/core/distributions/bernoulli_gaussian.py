@@ -87,10 +87,7 @@ class BernoulliGaussian(Distribution):
         E = EB * EN
         # TODO double check the order here
         E2 = EB * (np.square(EN) + self.params["var_B1"])
-        ENN = (
-            EB * (np.square(EN) + self.params["var_B1"])
-            + (1 - EB) * self.params["var_B0"]
-        )
+        ENN = EB * (np.square(EN) + self.params["var_B1"]) + (1 - EB) * self.params["var_B0"]
 
         # Compute the expectation of X*X.T (where X=BN)
         # Work but not useful now !

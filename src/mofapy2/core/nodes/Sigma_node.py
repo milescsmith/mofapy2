@@ -58,9 +58,7 @@ class Sigma_Node_base(Node):
         super().__init__(dim)
 
         # dimensions and inputs
-        self.use_gradients = (
-            model_groups  # without group model there is only a single parameter (zeta)
-        )
+        self.use_gradients = model_groups  # without group model there is only a single parameter (zeta)
         self.mini_batch = None
         self.sample_cov = sample_cov
         self.group_labels = groups
@@ -68,35 +66,25 @@ class Sigma_Node_base(Node):
         self.K = dim[0]  # number of factors
 
         # compatibility to other Sigma nodes and avoid code duplication
-        self.sample_cov_transformed = copy.copy(
-            sample_cov
-        )  # for compatibility with warping node
+        self.sample_cov_transformed = copy.copy(sample_cov)  # for compatibility with warping node
 
         # hyperparameter optimization
         self.start_opt = start_opt
         self.n_grid = n_grid
-        self.iter = (
-            0  # counter of iteration to keep track when to optimize lengthscales
-        )
+        self.iter = 0  # counter of iteration to keep track when to optimize lengthscales
         self.zeta = np.ones(
             self.K
         )  # noise hyperparameter, corresponds to idenity matrices (and the init of SimgaInv terms)
-        self.gridix = np.zeros(
-            self.K, dtype=np.int8
-        )  # index of the lengthscale grid values to use per factor
-        self.struct_sig = np.zeros(
-            self.K
-        )  # store ELBO improvements compared to diagonal covariance
+        self.gridix = np.zeros(self.K, dtype=np.int8)  # index of the lengthscale grid values to use per factor
+        self.struct_sig = np.zeros(self.K)  # store ELBO improvements compared to diagonal covariance
         self.opt_freq = opt_freq
-        assert (
-            self.start_opt % self.opt_freq == 0
-        ), "start_opt should be a multiple of opt_freq"  # to ensure in the first opt. step optimization is performed
+        assert self.start_opt % self.opt_freq == 0, (
+            "start_opt should be a multiple of opt_freq"
+        )  # to ensure in the first opt. step optimization is performed
 
         # initialize group kernel
         self.model_groups = model_groups
-        self.groupsidx = pd.factorize(self.group_labels)[
-            0
-        ]  # for each sample gives the idx in groups
+        self.groupsidx = pd.factorize(self.group_labels)[0]  # for each sample gives the idx in groups
         self.groups = np.unique(self.group_labels)  # distinct group labels
 
     def initKc(self, transformed_sample_cov, cov4grid=None, spectral_decomp=True):
@@ -110,9 +98,7 @@ class Sigma_Node_base(Node):
             # non unique if no group model
             self.covidx = np.asarray(
                 [
-                    np.where(
-                        (self.covariates == transformed_sample_cov[j, :]).all(axis=1)
-                    )[0].item()
+                    np.where((self.covariates == transformed_sample_cov[j, :]).all(axis=1))[0].item()
                     for j in range(self.Nu)
                 ]
             )  # for each sample gives the idx in covariates
@@ -179,49 +165,34 @@ class Sigma_Node_base(Node):
             components = self.get_components(k)
             term1 = np.kron(components["Vg"], components["Vc"])
             term2diag = 1 / (
-                np.repeat(components["Dg"], self.C)
-                * np.tile(components["Dc"], self.G)
+                np.repeat(components["Dg"], self.C) * np.tile(components["Dc"], self.G)
                 + self.zeta[k] / (1 - self.zeta[k])
             )
-            term3 = np.kron(
-                components["Vg"].transpose(), components["Vc"].transpose()
-            )
+            term3 = np.kron(components["Vg"].transpose(), components["Vc"].transpose())
             self.Sigma_inv[k, :, :] = (
-                1
-                / (1 - self.zeta[k])
-                * gpu_utils.dot(gpu_utils.dot(term1, np.diag(term2diag)), term3)
+                1 / (1 - self.zeta[k]) * gpu_utils.dot(gpu_utils.dot(term1, np.diag(term2diag)), term3)
             )
-            self.Sigma_inv_logdet[k] = (
-                -self.Nu * np.log(1 - self.zeta[k]) + np.log(term2diag).sum()
-            )
+            self.Sigma_inv_logdet[k] = -self.Nu * np.log(1 - self.zeta[k]) + np.log(term2diag).sum()
 
             if not only_inverse:
                 components = self.get_components(k)
                 term1 = np.kron(components["Vg"], components["Vc"])
-                term2diag = np.repeat(components["Dg"], self.C) * np.tile(
-                    components["Dc"], self.G
-                ) + self.zeta[k] / (1 - self.zeta[k])
-                term3 = np.kron(
-                    components["Vg"].transpose(), components["Vc"].transpose()
+                term2diag = np.repeat(components["Dg"], self.C) * np.tile(components["Dc"], self.G) + self.zeta[k] / (
+                    1 - self.zeta[k]
                 )
+                term3 = np.kron(components["Vg"].transpose(), components["Vc"].transpose())
                 self.Sigma[k, :, :] = (1 - self.zeta[k]) * gpu_utils.dot(
                     term1, gpu_utils.dot(np.diag(term2diag), term3)
                 )
         else:
             if self.model_groups:
-                Sigma = (1 - self.zeta[k]) * self.Kc.Kmat[
-                    self.Kc.get_best_lidx(k), self.covidx, :
-                ][:, self.covidx] * self.Kg.Kmat[k, self.groupsidx, :][
-                    :, self.groupsidx
-                ] + self.zeta[
-                    k
-                ] * np.eye(
+                Sigma = (1 - self.zeta[k]) * self.Kc.Kmat[self.Kc.get_best_lidx(k), self.covidx, :][
+                    :, self.covidx
+                ] * self.Kg.Kmat[k, self.groupsidx, :][:, self.groupsidx] + self.zeta[k] * np.eye(self.N)
+            else:
+                Sigma = (1 - self.zeta[k]) * self.Kc.Kmat[self.Kc.get_best_lidx(k), :, :] + self.zeta[k] * np.eye(
                     self.N
                 )
-            else:
-                Sigma = (1 - self.zeta[k]) * self.Kc.Kmat[
-                    self.Kc.get_best_lidx(k), :, :
-                ] + self.zeta[k] * np.eye(self.N)
             self.Sigma_inv[k, :, :] = np.linalg.inv(Sigma)
             self.Sigma_inv_logdet[k] = np.linalg.slogdet(self.Sigma_inv[k, :, :])[1]
             if not only_inverse:
@@ -259,11 +230,7 @@ class Sigma_Node_base(Node):
     def get_sharedness(self):
         Kgs = self.Kg.Kmat
         sharedness = np.array(
-            [
-                np.tril(np.abs(Kgs[k, :, :] - np.eye(self.G))).sum()
-                / (self.G * (self.G - 1) / 2)
-                for k in range(self.K)
-            ]
+            [np.tril(np.abs(Kgs[k, :, :] - np.eye(self.G))).sum() / (self.G * (self.G - 1) / 2) for k in range(self.K)]
         )
         return sharedness
 
@@ -349,9 +316,7 @@ class Sigma_Node_base(Node):
             sigma = par[1]
             x = par[2:]
 
-            assert (
-                len(x) == self.Kg.rank * self.G
-            ), "Length of x incorrect: Is %s, should be  %s * %s" % (
+            assert len(x) == self.Kg.rank * self.G, "Length of x incorrect: Is %s, should be  %s * %s" % (
                 len(x),
                 self.Kg.rank,
                 self.G,
@@ -376,10 +341,7 @@ class Sigma_Node_base(Node):
         gradient = (
             [-var.calcELBOgrad_k(k, gradient_Sigma_zeta)]
             + [-var.calcELBOgrad_k(k, gradient_Sigma_sigma)]
-            + [
-                -var.calcELBOgrad_k(k, gradient_Sigma_x[i])
-                for i in range(len(gradient_Sigma_x))
-            ]
+            + [-var.calcELBOgrad_k(k, gradient_Sigma_x[i]) for i in range(len(gradient_Sigma_x))]
         )
 
         return gradient
@@ -398,17 +360,13 @@ class Sigma_Node_base(Node):
             sigma = par[1]
             x = par[2:]
 
-            assert (
-                len(x) == self.Kg.rank * self.G
-            ), "Length of x incorrect: Is %s, should be  %s * %s" % (
+            assert len(x) == self.Kg.rank * self.G, "Length of x incorrect: Is %s, should be  %s * %s" % (
                 len(x),
                 self.Kg.rank,
                 self.G,
             )
             x = x.reshape(self.Kg.rank, self.G)
-            self.Kg.set_parameters(
-                x=x, sigma=sigma, k=k, spectral_decomp=self.kronecker
-            )
+            self.Kg.set_parameters(x=x, sigma=sigma, k=k, spectral_decomp=self.kronecker)
 
         if self.kronecker:
             Vc, Dc = self.Kc.get_kernel_components_k(k)
@@ -420,9 +378,9 @@ class Sigma_Node_base(Node):
             Kc = self.Kc.Kmat[self.Kc.get_best_lidx(k), :, :]
             Kg = self.Kg.Kmat[k, :, :]
             if self.model_groups:
-                val = (1 - self.zeta[k]) * Kc[self.covidx, :][:, self.covidx] * Kg[
-                    self.groupsidx, :
-                ][:, self.groupsidx] + self.zeta[k] * np.eye(self.Nu)
+                val = (1 - self.zeta[k]) * Kc[self.covidx, :][:, self.covidx] * Kg[self.groupsidx, :][
+                    :, self.groupsidx
+                ] + self.zeta[k] * np.eye(self.Nu)
             else:
                 val = (1 - self.zeta[k]) * Kc + self.zeta[k] * np.eye(self.Nu)
 
@@ -440,9 +398,7 @@ class Sigma_Node_base(Node):
             sigma = par[1]
             x = par[2:]
 
-            assert (
-                len(x) == self.Kg.rank * self.G
-            ), "Length of x incorrect: Is %s, should be  %s * %s" % (
+            assert len(x) == self.Kg.rank * self.G, "Length of x incorrect: Is %s, should be  %s * %s" % (
                 len(x),
                 self.Kg.rank,
                 self.G,
@@ -468,26 +424,20 @@ class Sigma_Node_base(Node):
 
             # gradient wrt zeta
             if self.model_groups:
-                gradient_Sigma_zeta = -Kc[self.covidx, :][:, self.covidx] * Kg[
-                    self.groupsidx, :
-                ][:, self.groupsidx] + np.eye(self.Nu)
+                gradient_Sigma_zeta = -Kc[self.covidx, :][:, self.covidx] * Kg[self.groupsidx, :][
+                    :, self.groupsidx
+                ] + np.eye(self.Nu)
             else:
                 gradient_Sigma_zeta = -Kc + np.eye(self.Nu)
 
         if self.model_groups:
             # gradient wrt sigma
-            Z = np.dot(
-                x.transpose(), x
-            )  # diagonal can be neglected as set to 1, gradient 0
-            Gmat_unscaled = Z + sigma * np.eye(
-                self.G
-            )  # this is Kg before scaled to correlation
+            Z = np.dot(x.transpose(), x)  # diagonal can be neglected as set to 1, gradient 0
+            Gmat_unscaled = Z + sigma * np.eye(self.G)  # this is Kg before scaled to correlation
             Gmat_unscaled_sqrt = np.sqrt(Gmat_unscaled)
             N = np.outer(np.diag(Gmat_unscaled_sqrt), np.diag(Gmat_unscaled_sqrt))
             # N = np.array([[Gmat_unscaled_sqrt[g,g] * Gmat_unscaled_sqrt[h,h] for g in range(self.G)] for h in range(self.G)])
-            tmp = -0.5 * np.outer(
-                np.diag(Gmat_unscaled_sqrt), 1 / np.diag(Gmat_unscaled_sqrt)
-            )
+            tmp = -0.5 * np.outer(np.diag(Gmat_unscaled_sqrt), 1 / np.diag(Gmat_unscaled_sqrt))
             AN_sigma = tmp + tmp.transpose()
             # AN_sigma = np.array([[-0.5 * Gmat_unscaled_sqrt[g,g] / Gmat_unscaled_sqrt[h,h] -0.5 * Gmat_unscaled_sqrt[h,h] / Gmat_unscaled_sqrt[g,g] for g in range(self.G)] for h in range(self.G)])
             N2 = N**2
@@ -558,9 +508,7 @@ class Sigma_Node_base(Node):
                 gradient_Sigma_sigma,
                 gradient_Sigma_x,
             ) = self.calc_gradient_Sigma(z, lidx, k)
-            G_sigma_calc = (
-                [gradient_Sigma_zeta] + [gradient_Sigma_sigma] + gradient_Sigma_x
-            )
+            G_sigma_calc = [gradient_Sigma_zeta] + [gradient_Sigma_sigma] + gradient_Sigma_x
             G_sigma_approx = np.array(
                 [
                     [
@@ -589,19 +537,13 @@ class Sigma_Node_base(Node):
             )
             print(
                 "Numerical ELBO gradient:",
-                s.optimize.approx_fprime(
-                    z, self.calc_neg_elbo_k, 1.4901161193847656e-08, lidx, k, var
-                ),
+                s.optimize.approx_fprime(z, self.calc_neg_elbo_k, 1.4901161193847656e-08, lidx, k, var),
             )
-            print(
-                "Analytical ELBO gradient:", self.calc_neg_elbo_grad_k(z, lidx, k, var)
-            )
+            print("Analytical ELBO gradient:", self.calc_neg_elbo_grad_k(z, lidx, k, var))
             print("ELBO value:", self.calc_neg_elbo_k(z, lidx, k, var))
             print(
                 "Difference in ELBO gradient:",
-                s.optimize.check_grad(
-                    self.calc_neg_elbo_k, self.calc_neg_elbo_grad_k, z, lidx, k, var
-                ),
+                s.optimize.check_grad(self.calc_neg_elbo_k, self.calc_neg_elbo_grad_k, z, lidx, k, var),
             )
 
     def optimise(self, var):
@@ -745,9 +687,7 @@ class Sigma_Node(Sigma_Node_base):
         rankx=None,
         model_groups=False,
     ):
-        super().__init__(
-            dim, sample_cov, groups, start_opt, opt_freq, n_grid, rankx, model_groups
-        )
+        super().__init__(dim, sample_cov, groups, start_opt, opt_freq, n_grid, rankx, model_groups)
 
         # initialize group kernel
         if self.model_groups:
@@ -771,9 +711,7 @@ class Sigma_Node(Sigma_Node_base):
             self.G = 1
 
         # initialize Sigma terms (unstructured)
-        self.Nu = (
-            self.N
-        )  # dimension of the inverse matrix (can differ for sparse subclasses)
+        self.Nu = self.N  # dimension of the inverse matrix (can differ for sparse subclasses)
         self.Sigma_inv = np.zeros([self.K, self.Nu, self.Nu])
         self.Sigma = np.zeros([self.K, self.N, self.N])
         for k in range(self.K):
@@ -805,17 +743,13 @@ class Sigma_Node_sparse(Sigma_Node_base):
         model_groups=False,
         idx_inducing=None,
     ):
-        super().__init__(
-            dim, sample_cov, groups, start_opt, opt_freq, n_grid, rankx, model_groups
-        )
+        super().__init__(dim, sample_cov, groups, start_opt, opt_freq, n_grid, rankx, model_groups)
 
         # sparse GPs
         self.idx_inducing = idx_inducing
         self.Nu = len(idx_inducing)
         self.groupsidx_all = self.groupsidx
-        self.groupsidx = self.groupsidx[
-            self.idx_inducing
-        ]  # subset to group labels for inducing points
+        self.groupsidx = self.groupsidx[self.idx_inducing]  # subset to group labels for inducing points
 
         # initialize group kernel
         if self.model_groups:
@@ -825,12 +759,8 @@ class Sigma_Node_sparse(Sigma_Node_base):
             self.kronecker = np.all(
                 [
                     np.all(
-                        self.sample_cov_transformed[self.idx_inducing][
-                            self.groupsidx == 0
-                        ]
-                        == self.sample_cov_transformed[self.idx_inducing][
-                            self.groupsidx == g
-                        ]
+                        self.sample_cov_transformed[self.idx_inducing][self.groupsidx == 0]
+                        == self.sample_cov_transformed[self.idx_inducing][self.groupsidx == g]
                     )
                     for g in range(self.G)
                 ]
@@ -877,9 +807,7 @@ class Sigma_Node_sparse(Sigma_Node_base):
         else:
             self.update_Sigma_complete_k(k)
             # TODO make use of Kronecker structures where possible in the following
-            self.Sigma_inv[k, :, :] = np.linalg.inv(
-                self.Sigma[k, self.idx_inducing, :][:, self.idx_inducing]
-            )
+            self.Sigma_inv[k, :, :] = np.linalg.inv(self.Sigma[k, self.idx_inducing, :][:, self.idx_inducing])
             self.Sigma_inv_logdet[k] = np.linalg.slogdet(self.Sigma_inv[k, :, :])[1]
 
     def update_Sigma_complete_k(self, k):
@@ -891,13 +819,11 @@ class Sigma_Node_sparse(Sigma_Node_base):
         else:
             Kc_k = self.Kc.eval_at_newpoints_k(self.sample_cov_transformed, k)
             if not self.model_groups:
-                self.Sigma[k, :, :] = (1 - self.zeta[k]) * Kc_k + self.zeta[k] * np.eye(
-                    self.N
-                )
+                self.Sigma[k, :, :] = (1 - self.zeta[k]) * Kc_k + self.zeta[k] * np.eye(self.N)
             else:
-                self.Sigma[k, :, :] = (1 - self.zeta[k]) * Kc_k * self.Kg.Kmat[
-                    k, self.groupsidx_all, :
-                ][:, self.groupsidx_all] + self.zeta[k] * np.eye(self.N)
+                self.Sigma[k, :, :] = (1 - self.zeta[k]) * Kc_k * self.Kg.Kmat[k, self.groupsidx_all, :][
+                    :, self.groupsidx_all
+                ] + self.zeta[k] * np.eye(self.N)
 
     def updateParameters(self, ix, ro):
         """
@@ -937,9 +863,7 @@ class Sigma_Node_warping(Sigma_Node_base):
         warping_open_end=True,
         warping_groups=None,
     ):
-        super().__init__(
-            dim, sample_cov, groups, start_opt, opt_freq, n_grid, rankx, model_groups
-        )
+        super().__init__(dim, sample_cov, groups, start_opt, opt_freq, n_grid, rankx, model_groups)
         self.kronecker = False
         self.new_alignment = False
 
@@ -958,23 +882,19 @@ class Sigma_Node_warping(Sigma_Node_base):
         self.G4warping = len(
             pd.factorize(warping_groups)[1]
         )  # number of groups to consider for warping (if no group kernel this differs from self.G)
-        assert (
-            warping_ref < self.G4warping
-        ), "Reference group not correctly specified, exceeds the number of groups."
+        assert warping_ref < self.G4warping, "Reference group not correctly specified, exceeds the number of groups."
         self.reference_group = warping_ref
         self.warping_freq = warping_freq
         self.warping_open_begin = warping_open_begin
         self.warping_open_end = warping_open_end
         self.warping_groups = pd.factorize(warping_groups)[0]
 
-        assert (
-            self.start_opt % self.warping_freq == 0
-        ), "start_opt should be a multiple of warping_freq"  # to ensure in the first opt. step alignment is performed
+        assert self.start_opt % self.warping_freq == 0, (
+            "start_opt should be a multiple of warping_freq"
+        )  # to ensure in the first opt. step alignment is performed
 
         # initialize Sigma terms (unstructured)
-        self.Nu = (
-            self.N
-        )  # dimension of the inverse matrix (can differ for sparse subclasses)
+        self.Nu = self.N  # dimension of the inverse matrix (can differ for sparse subclasses)
         self.Sigma_inv = np.zeros([self.K, self.Nu, self.Nu])
         self.Sigma = np.zeros([self.K, self.N, self.N])
         for k in range(self.K):
@@ -1003,16 +923,12 @@ class Sigma_Node_warping(Sigma_Node_base):
             # after a new alignment check that a sufficient smoothness and sharedness is present for a sensible alignment
             if self.new_alignment:
                 if self.model_groups:
-                    if all(1 - self.get_zeta() < 0.1) or all(
-                        self.get_sharedness() < 0.1
-                    ):
+                    if all(1 - self.get_zeta() < 0.1) or all(self.get_sharedness() < 0.1):
                         print(
                             "WARNING: Factors show little shared smooth variation between groups - alignment might not work as intended."
                         )
                 elif all(1 - self.get_zeta() < 0.1):
-                    print(
-                        "WARNING: Factors show little smooth variation - alignment might not work as intended."
-                    )
+                    print("WARNING: Factors show little smooth variation - alignment might not work as intended.")
                 self.new_alignment = False
 
     def align_sample_cov_dtw(self, Z):
@@ -1031,25 +947,16 @@ class Sigma_Node_warping(Sigma_Node_base):
                 tg = np.sort(np.unique(self.sample_cov[self.warping_groups == g, 0]))
                 Zg = [
                     np.mean(
-                        Z[self.warping_groups == g, :][
-                            self.sample_cov[self.warping_groups == g, 0] == t, :
-                        ],
+                        Z[self.warping_groups == g, :][self.sample_cov[self.warping_groups == g, 0] == t, :],
                         axis=0,
                     )
                     for t in tg
                 ]
-                tref = np.sort(
-                    np.unique(
-                        self.sample_cov[self.warping_groups == self.reference_group, 0]
-                    )
-                )
+                tref = np.sort(np.unique(self.sample_cov[self.warping_groups == self.reference_group, 0]))
                 Zref = [
                     np.mean(
                         Z[self.warping_groups == self.reference_group, :][
-                            self.sample_cov[
-                                self.warping_groups == self.reference_group, 0
-                            ]
-                            == t,
+                            self.sample_cov[self.warping_groups == self.reference_group, 0] == t,
                             :,
                         ],
                         axis=0,
@@ -1069,9 +976,7 @@ class Sigma_Node_warping(Sigma_Node_base):
                 new_val = tref[ref_idx]
                 old_val = self.sample_cov[self.warping_groups == g, 0]
                 new_sample_cov = [new_val[tg == told].item() for told in old_val]
-                self.sample_cov_transformed[self.warping_groups == g, 0] = (
-                    new_sample_cov
-                )
+                self.sample_cov_transformed[self.warping_groups == g, 0] = new_sample_cov
 
                 # # reorder by covariate value to ensure monotonicity constrains are correctly placed
                 # idx_ref_order = np.argsort(self.sample_cov[self.warping_groups == self.reference_group,0])

@@ -71,9 +71,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Z = self.markov_blanket["Z"].get_mini_batch()
         mask = [self.markov_blanket["Y"].nodes[m].getMask() for m in range(len(Y))]
 
-        assert (
-            "Sigma" in self.markov_blanket
-        ), "Sigma not found in Markov blanket of U node"
+        assert "Sigma" in self.markov_blanket, "Sigma not found in Markov blanket of U node"
         Sigma = self.markov_blanket["Sigma"].get_mini_batch()
         SigmaUZ = Sigma["cov"][:, self.idx_inducing, :]
         p_cov_inv = Sigma["inv"]
@@ -90,9 +88,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Q["mean"] = par_up["Qmean"]
         Q["cov"] = par_up["Qcov"]
 
-        self.Q.setParameters(
-            mean=Q["mean"], cov=Q["cov"]
-        )  # NOTE should not be necessary but safer to keep for now
+        self.Q.setParameters(mean=Q["mean"], cov=Q["cov"])  # NOTE should not be necessary but safer to keep for now
 
     def _updateParameters(self, Y, W, Z, tau, Qmean, Qcov, SigmaUZ, p_cov_inv, mask):
         """Hidden method to compute parameter updates"""
@@ -157,9 +153,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Qmean, Qcov = Qpar["mean"], Qpar["cov"]
         QE = Qexp["E"]
 
-        assert (
-            "Sigma" in self.markov_blanket
-        ), "Sigma not found in Markov blanket of U node"
+        assert "Sigma" in self.markov_blanket, "Sigma not found in Markov blanket of U node"
         Sigma = self.markov_blanket["Sigma"].getExpectations()
         p_cov = Sigma["cov"]
         p_cov_inv = Sigma["inv"]
@@ -169,9 +163,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         term2 = 0.5 * np.trace(
             gpu_utils.dot(
                 p_cov_inv[k, :, :],
-                gpu_utils.dot(
-                    gradSigma, gpu_utils.dot(p_cov_inv[k, :, :], Qcov[k, :, :])
-                ),
+                gpu_utils.dot(gradSigma, gpu_utils.dot(p_cov_inv[k, :, :], Qcov[k, :, :])),
             )
         )
         term3 = 0.5 * gpu_utils.dot(
@@ -204,9 +196,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         # compute term from the exponential in the Gaussian
         tmp1 = -0.5 * (
             np.trace(gpu_utils.dot(p_cov_inv[k, :, :], Qcov[k, :, :]))
-            + gpu_utils.dot(
-                QE[:, k].transpose(), gpu_utils.dot(p_cov_inv[k, :, :], QE[:, k])
-            )
+            + gpu_utils.dot(QE[:, k].transpose(), gpu_utils.dot(p_cov_inv[k, :, :], QE[:, k]))
         )  # expectation of quadratic form
 
         # compute term from the precision factor in front of the Gaussian

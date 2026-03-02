@@ -169,6 +169,7 @@ class MultivariateGaussian_Unobserved_Variational_Node(Unobserved_Variational_No
         )
 
 
+
 class MultivariateGaussian_AO_Unobserved_Variational_Node(Unobserved_Variational_Node):
     """
     Abstract class for a variational node where P(.) and Q(.)

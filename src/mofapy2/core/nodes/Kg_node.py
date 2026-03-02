@@ -55,9 +55,7 @@ class Kg_Node(Node):
 
     def compute_kernel_k(self, k, spectral_decomp=True):
         # build kernel matrix based on low-rank approximation
-        self.Kmat[k, :, :] = np.dot(
-            self.x[k, :, :].transpose(), self.x[k, :, :]
-        ) + self.sigma[k] * np.eye(self.G)
+        self.Kmat[k, :, :] = np.dot(self.x[k, :, :].transpose(), self.x[k, :, :]) + self.sigma[k] * np.eye(self.G)
 
         if self.scale_to_cor:
             self.Kmat[k, :, :] = covar_to_corr(self.Kmat[k, :, :])

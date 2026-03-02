@@ -70,18 +70,8 @@ class AlphaW_Node(Gamma_Unobserved_Variational_Node):
         QE, QlnE = self.Q.getExpectations()["E"], self.Q.getExpectations()["lnE"]
 
         # Do the calculations
-        lb_p = (
-            (Pa * np.log(Pb)).sum()
-            - special.gammaln(Pa).sum()
-            + ((Pa - 1.0) * QlnE).sum()
-            - (Pb * QE).sum()
-        )
-        lb_q = (
-            (Qa * np.log(Qb)).sum()
-            - special.gammaln(Qa).sum()
-            + ((Qa - 1.0) * QlnE).sum()
-            - (Qb * QE).sum()
-        )
+        lb_p = (Pa * np.log(Pb)).sum() - special.gammaln(Pa).sum() + ((Pa - 1.0) * QlnE).sum() - (Pb * QE).sum()
+        lb_q = (Qa * np.log(Qb)).sum() - special.gammaln(Qa).sum() + ((Qa - 1.0) * QlnE).sum() - (Qb * QE).sum()
 
         return lb_p - lb_q
 
@@ -170,9 +160,7 @@ class AlphaZ_Node(Gamma_Unobserved_Variational_Node):
                 continue
             coeff = self.n_per_group[c] / n_batch
 
-            Q["a"][c, :] += ro * (
-                Pa[c, :] + 0.5 * self.n_per_group[c]
-            )  # TODO should be precomputed
+            Q["a"][c, :] += ro * (Pa[c, :] + 0.5 * self.n_per_group[c])  # TODO should be precomputed
             Q["b"][c, :] += ro * (Pb[c, :] + 0.5 * coeff * ZZ[mask, :].sum(axis=0))
 
     def calculateELBO(self):
@@ -184,17 +172,7 @@ class AlphaZ_Node(Gamma_Unobserved_Variational_Node):
         QE, QlnE = self.Q.getExpectations()["E"], self.Q.getExpectations()["lnE"]
 
         # Do the calculations
-        lb_p = (
-            (Pa * np.log(Pb)).sum()
-            - special.gammaln(Pa).sum()
-            + ((Pa - 1.0) * QlnE).sum()
-            - (Pb * QE).sum()
-        )
-        lb_q = (
-            (Qa * np.log(Qb)).sum()
-            - special.gammaln(Qa).sum()
-            + ((Qa - 1.0) * QlnE).sum()
-            - (Qb * QE).sum()
-        )
+        lb_p = (Pa * np.log(Pb)).sum() - special.gammaln(Pa).sum() + ((Pa - 1.0) * QlnE).sum() - (Pb * QE).sum()
+        lb_q = (Qa * np.log(Qb)).sum() - special.gammaln(Qa).sum() + ((Qa - 1.0) * QlnE).sum() - (Qb * QE).sum()
 
         return lb_p - lb_q

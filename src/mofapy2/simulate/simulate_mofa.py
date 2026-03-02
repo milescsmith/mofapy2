@@ -15,14 +15,14 @@ from mofapy2.core.gp_utils import covar_to_corr
 def simulate_data(
     N=200,
     seed=1234567,
-    views: str | list[str] | None=None,
-    D: int | list[int] | None=None,
-    K: int=4,
-    G: int=1,
-    scales: float | list[float] | None=None,
-    lscales: float | list[float] | None=None,
-    sample_cov: npt.ArrayLike | Literal["equidistant"] ="equidistant",
-    noise_level: int=1,
+    views: str | list[str] | None = None,
+    D: int | list[int] | None = None,
+    K: int = 4,
+    G: int = 1,
+    scales: float | list[float] | None = None,
+    lscales: float | list[float] | None = None,
+    sample_cov: npt.ArrayLike | Literal["equidistant"] = "equidistant",
+    noise_level: int = 1,
     shared=True,
     plot=False,
     alpha=None,
@@ -180,9 +180,7 @@ def simulate_data(
         alpha_tmp = [np.ones(M) * inactive] * K
         for k in range(K):
             while np.all(alpha_tmp[k] == inactive):
-                alpha_tmp[k] = np.random.choice(
-                    [active, inactive], size=M, replace=True
-                )
+                alpha_tmp[k] = np.random.choice([active, inactive], size=M, replace=True)
         alpha = [np.array(alpha_tmp)[:, m] for m in range(M)]
     else:
         if len(alpha) != M:
@@ -198,8 +196,7 @@ def simulate_data(
         W.append(
             np.column_stack(
                 [
-                    np.random.normal(0, np.sqrt(1 / alpha[m][k]), D[m])
-                    * np.random.binomial(1, theta[m][k], D[m])
+                    np.random.normal(0, np.sqrt(1 / alpha[m][k]), D[m]) * np.random.binomial(1, theta[m][k], D[m])
                     for k in range(K)
                 ]
             )
@@ -211,9 +208,7 @@ def simulate_data(
         tau_m = (
             stats.uniform.rvs(loc=0.5, scale=1, size=D[m]) * 1 / noise_level
         )  # uniform between 0.5 and 1.5 scaled by noise level
-        noise.append(
-            np.random.multivariate_normal(np.zeros(D[m]), np.eye(D[m]) * 1 / tau_m, N)
-        )
+        noise.append(np.random.multivariate_normal(np.zeros(D[m]), np.eye(D[m]) * 1 / tau_m, N))
 
     # generate data
     data = []
@@ -254,19 +249,13 @@ def mask_samples(sim, perc=0.2, perc_all_views=0):
     N = sim["N"]
     M = len(sim["views"])
     G = len(sim["data"][0])
-    masked_samples = [
-        [np.random.choice(N, math.floor(N * perc), replace=False) for g in range(G)]
-        for m in range(M)
-    ]
+    masked_samples = [[np.random.choice(N, math.floor(N * perc), replace=False) for g in range(G)] for m in range(M)]
     for m in range(M):
         for g in range(G):
             data[m][g][masked_samples[m][g], :] = np.nan
 
     if perc_all_views > 0:
-        all_views = [
-            np.random.choice(N, math.floor(N * perc_all_views), replace=False)
-            for g in range(G)
-        ]
+        all_views = [np.random.choice(N, math.floor(N * perc_all_views), replace=False) for g in range(G)]
         for m in range(len(data)):
             for g in range(G):
                 data[m][g][all_views[g], :] = np.nan

@@ -205,9 +205,7 @@ class build_mofa_smooth(buildBiofam):
         train_opts,
         smooth_opts,
     ):
-        super().__init__(
-            data, dimensionalities, data_opts, model_opts, train_opts
-        )
+        super().__init__(data, dimensionalities, data_opts, model_opts, train_opts)
         self.sample_cov = sample_cov
         self.smooth_opts = smooth_opts
 

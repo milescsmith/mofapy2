@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy as s
 
@@ -31,10 +30,10 @@ class Kc_Node(Node):
         if cov4grid is None:
             self.cov4grid = covariates  # covariates use to build grid - for consistsney with non-spasre GP
         else:
-            self.cov4grid = cov4grid  # (can differ from covariates, e.g. if kernel is built on subset on inducing points)
-        self.gridix = np.zeros(
-            self.K, dtype=np.int8
-        )  # index of the grid values for lengthscale selected per factor
+            self.cov4grid = (
+                cov4grid  # (can differ from covariates, e.g. if kernel is built on subset on inducing points)
+            )
+        self.gridix = np.zeros(self.K, dtype=np.int8)  # index of the grid values for lengthscale selected per factor
 
         # initialize components in node
         self.compute4init(spectral_decomp)
@@ -59,12 +58,8 @@ class Kc_Node(Node):
 
         # initialise spectral decomposition
         else:
-            self.V = np.zeros(
-                [self.n_grid, self.C, self.C]
-            )  # eigenvectors of kernel matrix on lengthscale grid
-            self.D = np.zeros(
-                [self.n_grid, self.C]
-            )  # eigenvalues of kernel matrix on lengthscale grid
+            self.V = np.zeros([self.n_grid, self.C, self.C])  # eigenvectors of kernel matrix on lengthscale grid
+            self.D = np.zeros([self.n_grid, self.C])  # eigenvalues of kernel matrix on lengthscale grid
 
         # compute for each lengthscale the kernel matrix
         self.compute_kernel(spectral_decomp=spectral_decomp)

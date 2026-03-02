@@ -193,9 +193,7 @@ class Poisson_PseudoY(PseudoY_Seeger):
         )
 
         # Initialise the observed data
-        assert np.all(
-            np.mod(self.obs, 1) == 0
-        ), "Data must not contain float numbers, only integers"
+        assert np.all(np.mod(self.obs, 1) == 0), "Data must not contain float numbers, only integers"
         assert np.all(self.obs >= 0), "Data must not contain negative numbers"
 
     def precompute(self, options):
@@ -227,14 +225,8 @@ class Poisson_PseudoY(PseudoY_Seeger):
 
     def calculateELBO(self):
         """Compute Evidence Lower Bound"""
-        Wtmp = {
-            k: gpu_utils.array(mat)
-            for k, mat in self.markov_blanket["W"].getExpectations().items()
-        }
-        Ztmp = {
-            k: gpu_utils.array(mat)
-            for k, mat in self.markov_blanket["Z"].getExpectations().items()
-        }
+        Wtmp = {k: gpu_utils.array(mat) for k, mat in self.markov_blanket["W"].getExpectations().items()}
+        Ztmp = {k: gpu_utils.array(mat) for k, mat in self.markov_blanket["Z"].getExpectations().items()}
         W, WW = Wtmp["E"], Wtmp["E2"]
         Z, ZZ = Ztmp["E"], Ztmp["E2"]
         zeta = gpu_utils.array(self.params["zeta"])
@@ -243,18 +235,12 @@ class Poisson_PseudoY(PseudoY_Seeger):
 
         # Precompute terms
         ZW = Z.dot(W.T)
-        ZZWW = (
-            gpu_utils.square(ZW)
-            - gpu_utils.dot(gpu_utils.square(Z), gpu_utils.square(W).T)
-            + ZZ.dot(WW.T)
-        )
+        ZZWW = gpu_utils.square(ZW) - gpu_utils.dot(gpu_utils.square(Z), gpu_utils.square(W).T) + ZZ.dot(WW.T)
 
         # term1 = 0.5*tau*(ZW - zeta)**2
         obs = gpu_utils.array(self.obs)
         term1 = 0.5 * tau * (ZZWW - 2 * ZW * zeta + gpu_utils.square(zeta))
-        term2 = (ZW - zeta) * (
-            gpu_utils.sigmoid(zeta) * (1.0 - obs / self.ratefn(zeta))
-        )
+        term2 = (ZW - zeta) * (gpu_utils.sigmoid(zeta) * (1.0 - obs / self.ratefn(zeta)))
         term3 = self.ratefn(zeta) - obs * gpu_utils.log(self.ratefn(zeta))
 
         elbo = -(term1 + term2 + term3)
@@ -295,9 +281,7 @@ class Bernoulli_PseudoY(PseudoY_Seeger):
 
     def updateExpectations(self):
         # Update the pseudodata
-        self.E = self.params["zeta"] - 4.0 * (
-            gpu_utils.sigmoid(self.params["zeta"]) - self.obs
-        )
+        self.E = self.params["zeta"] - 4.0 * (gpu_utils.sigmoid(self.params["zeta"]) - self.obs)
 
         # regress out feature-wise mean from the pseudodata
         self.means = self.E.mean(axis=0).data
@@ -399,14 +383,8 @@ class Bernoulli_PseudoY_Jaakkola(PseudoY):
         self.E -= self.means
 
     def updateParameters(self, ix=None, ro=None):
-        Z = {
-            k: gpu_utils.array(mat)
-            for k, mat in self.markov_blanket["Z"].getExpectations().items()
-        }
-        W = {
-            k: gpu_utils.array(mat)
-            for k, mat in self.markov_blanket["W"].getExpectations().items()
-        }
+        Z = {k: gpu_utils.array(mat) for k, mat in self.markov_blanket["Z"].getExpectations().items()}
+        W = {k: gpu_utils.array(mat) for k, mat in self.markov_blanket["W"].getExpectations().items()}
         self.params["zeta"] = gpu_utils.asnumpy(
             gpu_utils.sqrt(
                 gpu_utils.square(Z["E"].dot(W["E"].T))
@@ -417,14 +395,8 @@ class Bernoulli_PseudoY_Jaakkola(PseudoY):
 
     def calculateELBO(self):
         # Compute Evidence Lower Bound using the lower bound to the likelihood
-        Wtmp = {
-            k: gpu_utils.array(mat)
-            for k, mat in self.markov_blanket["W"].getExpectations().items()
-        }
-        Ztmp = {
-            k: gpu_utils.array(mat)
-            for k, mat in self.markov_blanket["Z"].getExpectations().items()
-        }
+        Wtmp = {k: gpu_utils.array(mat) for k, mat in self.markov_blanket["W"].getExpectations().items()}
+        Ztmp = {k: gpu_utils.array(mat) for k, mat in self.markov_blanket["Z"].getExpectations().items()}
         zeta = gpu_utils.array(self.params["zeta"])
         SW, SWW = Wtmp["E"], Wtmp["E2"]
         Z, ZZ = Ztmp["E"], Ztmp["E2"]
@@ -536,9 +508,7 @@ class Zero_Inflated_PseudoY_Jaakkola(Unobserved_Variational_Mixed_Node):
 
     def getExpectation(self, expand=True):
         E = self.normal_node.getExpectation().copy()
-        pseudo_y = (
-            self.jaakola_node.getExpectation()
-        )  # TODO Is this in any ways comparable to E?
+        pseudo_y = self.jaakola_node.getExpectation()  # TODO Is this in any ways comparable to E?
         E[self.zeros] = pseudo_y[self.zeros]
         return E
 

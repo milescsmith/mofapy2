@@ -31,9 +31,7 @@ class ZgU_node(UnivariateGaussian_Unobserved_Variational_Node):
         qE2=None,
         weight_views=False,
     ):
-        super().__init__(
-            dim=dim, pmean=pmean, pvar=pvar, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2
-        )
+        super().__init__(dim=dim, pmean=pmean, pvar=pvar, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2)
 
         self.mini_batch = None
         self.factors_axis = 1
@@ -62,9 +60,7 @@ class ZgU_node(UnivariateGaussian_Unobserved_Variational_Node):
         # Get expectations from other nodes
         U = self.markov_blanket["U"].getExpectations()
 
-        assert (
-            "Sigma" in self.markov_blanket
-        ), "Sigma Node not found in Markov blanket of ZgU node."
+        assert "Sigma" in self.markov_blanket, "Sigma Node not found in Markov blanket of ZgU node."
         Sigma = self.markov_blanket["Sigma"].get_mini_batch()
         GPparam = self.markov_blanket["Sigma"].getParameters()
 
@@ -91,9 +87,7 @@ class ZgU_node(UnivariateGaussian_Unobserved_Variational_Node):
             Q["mean"][ix, :] = par_up["Qmean"]
             Q["var"][ix, :] = par_up["Qvar"]
 
-        self.Q.setParameters(
-            mean=Q["mean"], var=Q["var"]
-        )  # NOTE should not be necessary but safer to keep for now
+        self.Q.setParameters(mean=Q["mean"], var=Q["var"])  # NOTE should not be necessary but safer to keep for now
         self.P.setParameters(mean=Q["mean"], var=Q["var"])
 
     def _updateParameters(self, U, Sigma, GPparam, Qmean, Qvar, Y, W, tau, mask):
@@ -138,9 +132,7 @@ class ZgU_node(UnivariateGaussian_Unobserved_Variational_Node):
                     tmp_cp2 = gpu_utils.array(W[m]["E"][:, np.arange(K) != k].T)
 
                     bar_tmp1 = gpu_utils.array(W[m]["E"][:, k])
-                    bar_tmp2 = gpu_utils.array(tau[m]) * (
-                        -gpu_utils.dot(tmp_cp1, tmp_cp2)
-                    )
+                    bar_tmp2 = gpu_utils.array(tau[m]) * (-gpu_utils.dot(tmp_cp1, tmp_cp2))
 
                     bar += weights[m] * gpu_utils.dot(bar_tmp2, bar_tmp1)
                 bar += precomputed_bar[:, k]

@@ -25,10 +25,7 @@ class TauD_Node(Gamma_Unobserved_Variational_Node):
         gpu_utils.gpu_mode = options["gpu_mode"]
 
         # Constant ELBO terms
-        self.lbconst = np.sum(
-            self.P.params["a"] * np.log(self.P.params["b"])
-            - special.gammaln(self.P.params["a"])
-        )
+        self.lbconst = np.sum(self.P.params["a"] * np.log(self.P.params["b"]) - special.gammaln(self.P.params["a"]))
 
         # compute number of samples per group
         self.n_per_group = np.zeros(self.n_groups)
@@ -135,10 +132,7 @@ class TauD_Node(Gamma_Unobserved_Variational_Node):
             # Calculate scaling coefficient for mini-batch
             coeff = self.n_per_group[g] / n_batch
 
-            Qa[g, :] += ro * (
-                Pa[g, :]
-                + 0.5 * coeff * (mask[g_mask, :].shape[0] - mask[g_mask, :].sum(axis=0))
-            )
+            Qa[g, :] += ro * (Pa[g, :] + 0.5 * coeff * (mask[g_mask, :].shape[0] - mask[g_mask, :].sum(axis=0)))
             Qb[g, :] += ro * (Pb[g, :] + 0.5 * coeff * tmp[g_mask, :].sum(axis=0))
 
         return Qa, Qb
@@ -153,11 +147,6 @@ class TauD_Node(Gamma_Unobserved_Variational_Node):
 
         # Do the calculations
         lb_p = self.lbconst + np.sum((Pa - 1.0) * QlnE) - np.sum(Pb * QE)
-        lb_q = (
-            np.sum(Qa * np.log(Qb))
-            + np.sum((Qa - 1.0) * QlnE)
-            - np.sum(Qb * QE)
-            - np.sum(special.gammaln(Qa))
-        )
+        lb_q = np.sum(Qa * np.log(Qb)) + np.sum((Qa - 1.0) * QlnE) - np.sum(Qb * QE) - np.sum(special.gammaln(Qa))
 
         return lb_p - lb_q
