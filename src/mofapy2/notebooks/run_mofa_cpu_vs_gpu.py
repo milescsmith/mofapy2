@@ -31,9 +31,7 @@ args, _ = parser.parse_known_args()
 ## Load data in data.frame format ##
 ####################################
 
-data = pd.read_csv(
-    "ftp://ftp.ebi.ac.uk/pub/databases/mofa/getting_started/data.txt.gz", sep="\t"
-)
+data = pd.read_csv("ftp://ftp.ebi.ac.uk/pub/databases/mofa/getting_started/data.txt.gz", sep="\t")
 
 ##########
 ## MOFA ##

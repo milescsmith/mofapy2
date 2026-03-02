@@ -28,13 +28,9 @@ class initModel:
         np.random.seed(seed)
 
         # Set groups
-        assert (
-            len(groups) == dim["N"]
-        ), "sample groups labels do not match number of samples"
+        assert len(groups) == dim["N"], "sample groups labels do not match number of samples"
         self.groups = groups
-        self.groups_ix = np.unique(groups, return_inverse=True)[
-            1
-        ]  # convert groups into integers from 0 to n_groups
+        self.groups_ix = np.unique(groups, return_inverse=True)[1]  # convert groups into integers from 0 to n_groups
 
         # Set data
         self.data = data
@@ -121,9 +117,7 @@ class initModel:
                     qmean = pca.transform(Ytmp)
 
                 # scale factor values from -1 to 1 (per factor)
-                qmean = (
-                    2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
-                )
+                qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
 
             elif isinstance(qmean, np.ndarray):
                 assert qmean.shape == (
@@ -221,9 +215,7 @@ class initModel:
                     qmean = pca.transform(Ytmp)
 
                 # scale factor values from -1 to 1 (per factor)
-                qmean = (
-                    2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
-                )
+                qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
 
             elif isinstance(qmean, np.ndarray):
                 assert qmean.shape == (
@@ -329,9 +321,7 @@ class initModel:
         idx_inducing=None,
         weight_views=False,
     ):
-        assert (
-            idx_inducing is not None
-        ), "Stop: ZgU nodes is used without inducing points"
+        assert idx_inducing is not None, "Stop: ZgU nodes is used without inducing points"
 
         ## Initialise prior distribution (P)
 
@@ -372,9 +362,7 @@ class initModel:
                     qmean = pca.transform(Ytmp)
 
                 # scale factor values from -1 to 1 (per factor)
-                qmean = (
-                    2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
-                )
+                qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
 
             elif isinstance(qmean, np.ndarray):
                 assert qmean.shape == (
@@ -552,9 +540,7 @@ class initModel:
             weight_views=weight_views,
         )
 
-    def initW(
-        self, pmean=0.0, pvar=1.0, qmean="random", qvar=1.0, qE=None, qE2=None, Y=None
-    ):
+    def initW(self, pmean=0.0, pvar=1.0, qmean="random", qvar=1.0, qE=None, qE2=None, Y=None):
         """Method to initialise the weights
 
         PARAMETERS
@@ -585,15 +571,11 @@ class initModel:
                 if isinstance(qmean, str):
                     # Random initialisation
                     if qmean == "random":
-                        qmean_m = stats.norm.rvs(
-                            loc=0, scale=1.0, size=(self.D[m], self.K)
-                        )
+                        qmean_m = stats.norm.rvs(loc=0, scale=1.0, size=(self.D[m], self.K))
 
                     elif qmean_S1 == "pca":
                         # print("Initialising weights with PCA solution")
-                        pca = sklearn.decomposition.PCA(
-                            n_components=self.K, whiten=True
-                        )
+                        pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                         pca.fit(Y[m])
                         qmean_S1_tmp = pca.components_.T
 
@@ -659,9 +641,7 @@ class initModel:
             ## Initialise variational distribution (Q)
             if isinstance(qmean_S1, str):
                 if qmean_S1 == "random":
-                    qmean_S1_tmp = stats.norm.rvs(
-                        loc=0, scale=1.0, size=(self.D[m], self.K)
-                    )
+                    qmean_S1_tmp = stats.norm.rvs(loc=0, scale=1.0, size=(self.D[m], self.K))
                 elif qmean_S1 == "pca":
                     # if np.any(np.isnan(Y[m])):
                     #     print("Initialising weights with PCA solution, but data has missing values. Doing quick feature-wise mean imputation (just for the initialisation)... ")
@@ -764,9 +744,7 @@ class initModel:
         alpha_list = [None] * self.M
 
         for m in range(self.M):
-            alpha_list[m] = AlphaW_Node(
-                dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE, qlnE=qlnE
-            )
+            alpha_list[m] = AlphaW_Node(dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE, qlnE=qlnE)
         self.nodes["AlphaW"] = Multiview_Variational_Node(self.M, *alpha_list)
 
     def initTau(self, pa=1e-3, pb=1e-3, qa=1.0, qb=1.0, qE=None):
@@ -832,9 +810,7 @@ class initModel:
         Y_list = [None] * self.M
         for m in range(self.M):
             if self.lik[m] == "gaussian":
-                Y_list[m] = Y_Node(
-                    dim=(self.N, self.D[m]), value=self.data[m], groups=self.groups_ix
-                )
+                Y_list[m] = Y_Node(dim=(self.N, self.D[m]), value=self.data[m], groups=self.groups_ix)
             elif self.lik[m] == "poisson":
                 Y_list[m] = Poisson_PseudoY(
                     dim=(self.N, self.D[m]),
@@ -850,9 +826,7 @@ class initModel:
                     groups=self.groups_ix,
                 )
             elif self.lik[m] == "zero_inflated":
-                Y_list[m] = Zero_Inflated_PseudoY_Jaakkola(
-                    dim=(self.N, self.D[m]), obs=self.data[m], E=self.data[m]
-                )
+                Y_list[m] = Zero_Inflated_PseudoY_Jaakkola(dim=(self.N, self.D[m]), obs=self.data[m], E=self.data[m])
         self.Y = Multiview_Mixed_Node(self.M, *Y_list)
         self.nodes["Y"] = self.Y
 
@@ -901,9 +875,7 @@ class initModel:
         """
         Theta_list = [None] * self.M
         for m in range(self.M):
-            Theta_list[m] = ThetaW_Node(
-                dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE
-            )
+            Theta_list[m] = ThetaW_Node(dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE)
         self.nodes["ThetaW"] = Multiview_Variational_Node(self.M, *Theta_list)
 
     def initExpectations(self, *nodes):

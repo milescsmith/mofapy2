@@ -11,19 +11,13 @@ from .variational_nodes import (
 
 
 # Z_Node_GP
-class Z_GP_Node(
-    UnivariateGaussian_Unobserved_Variational_Node_with_MultivariateGaussian_Prior
-):
+class Z_GP_Node(UnivariateGaussian_Unobserved_Variational_Node_with_MultivariateGaussian_Prior):
     """
     Z node with a Multivariate Gaussian prior and univariate Gaussian variational
     """
 
-    def __init__(
-        self, dim, pmean, pcov, qmean, qvar, qE=None, qE2=None, weight_views=False
-    ):
-        super().__init__(
-            dim=dim, pmean=pmean, pcov=pcov, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2
-        )
+    def __init__(self, dim, pmean, pcov, qmean, qvar, qE=None, qE2=None, weight_views=False):
+        super().__init__(dim=dim, pmean=pmean, pcov=pcov, qmean=qmean, qvar=qvar, qE=qE, qE2=qE2)
 
         self.mini_batch = None
         self.factors_axis = 1
@@ -36,9 +30,7 @@ class Z_GP_Node(
         # Precompute terms (inverse covariance ant its determinant for each factor) to speed up computation
         tmp = self.P.params["cov"]
         self.p_cov_inv = np.array([s.linalg.inv(cov) for cov in tmp])  # TODO speed-ups
-        self.p_cov_inv_diag = np.array(
-            [np.diag(c) for c in self.p_cov_inv]
-        )  # TODO speed-ups
+        self.p_cov_inv_diag = np.array([np.diag(c) for c in self.p_cov_inv])  # TODO speed-ups
 
     def add_characteristics(self, struct=None, length_scales=None):
         self.struct = np.array(struct)
@@ -87,12 +79,8 @@ class Z_GP_Node(
             p_cov_inv = self.p_cov_inv
             p_cov_inv_diag = self.p_cov_inv_diag
             if ix is not None:
-                p_cov_inv = np.array(
-                    [p_cov_inv[i][ix][:, ix] for i in range(p_cov_inv.shape[0])]
-                )
-                p_cov_inv_diag = np.array(
-                    [p_cov_inv_diag[i][ix] for i in range(p_cov_inv_diag.shape[0])]
-                )
+                p_cov_inv = np.array([p_cov_inv[i][ix][:, ix] for i in range(p_cov_inv.shape[0])])
+                p_cov_inv_diag = np.array([p_cov_inv_diag[i][ix] for i in range(p_cov_inv_diag.shape[0])])
 
         # Get variational parameters of current node
         Q = self.Q.getParameters()
@@ -102,9 +90,7 @@ class Z_GP_Node(
             Qmean = Qmean[ix, :]
             Qvar = Qvar[ix, :]
 
-        par_up = self._updateParameters(
-            Y, W, tau, Alpha, Qmean, Qvar, p_cov_inv, p_cov_inv_diag, mask
-        )
+        par_up = self._updateParameters(Y, W, tau, Alpha, Qmean, Qvar, p_cov_inv, p_cov_inv_diag, mask)
 
         # Update parameters
         if ix is None:
@@ -117,13 +103,9 @@ class Z_GP_Node(
             Q["mean"][ix, :] = par_up["Qmean"]
             Q["var"][ix, :] = par_up["Qvar"]
 
-        self.Q.setParameters(
-            mean=Q["mean"], var=Q["var"]
-        )  # NOTE should not be necessary but safer to keep for now
+        self.Q.setParameters(mean=Q["mean"], var=Q["var"])  # NOTE should not be necessary but safer to keep for now
 
-    def _updateParameters(
-        self, Y, W, tau, Alpha, Qmean, Qvar, p_cov_inv, p_cov_inv_diag, mask
-    ):
+    def _updateParameters(self, Y, W, tau, Alpha, Qmean, Qvar, p_cov_inv, p_cov_inv_diag, mask):
         """Hidden method to compute parameter updates"""
 
         N = Y[0].shape[0]  # this is different from self.N for minibatch
@@ -165,17 +147,13 @@ class Z_GP_Node(
             bar += precomputed_bar[:, k]
             bar = gpu_utils.asnumpy(bar)
 
-            p_cov_inv_k_with_zerodiag = p_cov_inv[k, :, :] - p_cov_inv_diag[
-                k, :
-            ] * np.eye(N)
+            p_cov_inv_k_with_zerodiag = p_cov_inv[k, :, :] - p_cov_inv_diag[k, :] * np.eye(N)
             scaled_inv_with_zerodiag = gpu_utils.dot(
                 gpu_utils.dot(np.diag(np.sqrt(Alpha[:, k])), p_cov_inv_k_with_zerodiag),
                 np.diag(np.sqrt(Alpha[:, k])),
             )
 
-            Qvar[:, k] = 1.0 / (
-                Alpha[:, k] * p_cov_inv_diag[k, :].transpose() + foo[:, k]
-            )
+            Qvar[:, k] = 1.0 / (Alpha[:, k] * p_cov_inv_diag[k, :].transpose() + foo[:, k])
             Qmean[:, k] = Qvar[:, k] * (
                 bar - scaled_inv_with_zerodiag.dot(Qmean[:, k])
             )  # can take all samples here anp.zeros on diagonal
@@ -211,19 +189,15 @@ class Z_GP_Node(
             Alpha["lnE"] = np.zeros((self.N, self.K))
 
         # compute term from the exponential in the Gaussian
-        p_cov_inv_k_with_zerodiag = p_cov_inv[k, :, :] - p_cov_inv_diag[k, :] * np.eye(
-            self.N
-        )
+        p_cov_inv_k_with_zerodiag = p_cov_inv[k, :, :] - p_cov_inv_diag[k, :] * np.eye(self.N)
         scaled_inv_with_zerodiag = gpu_utils.dot(
-            gpu_utils.dot(
-                np.diag(np.sqrt(Alpha["E"][:, k])), p_cov_inv_k_with_zerodiag[:, :]
-            ),
+            gpu_utils.dot(np.diag(np.sqrt(Alpha["E"][:, k])), p_cov_inv_k_with_zerodiag[:, :]),
             np.diag(np.sqrt(Alpha["E"][:, k])),
         )
 
-        tmp1 = -0.5 * QE[:, k].transpose().dot(
-            scaled_inv_with_zerodiag.dot(QE[:, k])
-        ) - 0.5 * ((Alpha["E"][:, k] * p_cov_inv_diag[k, :]).dot(QE2[:, k]))
+        tmp1 = -0.5 * QE[:, k].transpose().dot(scaled_inv_with_zerodiag.dot(QE[:, k])) - 0.5 * (
+            (Alpha["E"][:, k] * p_cov_inv_diag[k, :]).dot(QE2[:, k])
+        )
 
         # compute term from the precision factor in front of the Gaussian
         tmp2 = 0.5 * p_cov_inv_logdet[k] + 0.5 * Alpha["lnE"][:, k].sum()
@@ -252,9 +226,6 @@ class Z_GP_Node(
         else:
             cov = self.P.params["cov"]
 
-        samp_tmp = [
-            np.random.multivariate_normal(mu[:, i], cov[i, :, :])
-            for i in range(self.dim[1])
-        ]
+        samp_tmp = [np.random.multivariate_normal(mu[:, i], cov[i, :, :]) for i in range(self.dim[1])]
         self.samp = np.array([tmp - tmp.mean() for tmp in samp_tmp]).transpose()
         return self.samp
