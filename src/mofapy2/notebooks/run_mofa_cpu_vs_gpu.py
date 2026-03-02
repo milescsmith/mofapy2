@@ -2,7 +2,7 @@ import argparse
 
 import pandas as pd
 
-from mofapy2.run.entry_point import EntryPoint
+from mofapy2.run.entry_point import entry_point
 
 #####################
 ## Parse arguments ##
@@ -40,7 +40,7 @@ data = pd.read_csv(
 ##########
 
 # initialise
-ent = EntryPoint()
+ent = entry_point()
 
 # Set data options
 ent.set_data_options()

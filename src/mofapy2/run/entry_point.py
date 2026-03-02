@@ -56,7 +56,7 @@ def keyboardinterrupt_saver(func):
     return saver
 
 
-class EntryPoint:
+class entry_point:
     def __init__(self):
         self.print_banner()
         self.dimensionalities = {"C": 0}
@@ -1730,7 +1730,7 @@ def mofa(
         return a copy of AnnData instead of writing to the provided object
     """
 
-    ent = EntryPoint()
+    ent = entry_point()
 
     lik = [likelihood] if likelihood is not None else None
 
