@@ -17,8 +17,8 @@ from rich.padding import Padding
 from rich.panel import Panel
 
 from mofapy2 import config, console
-from mofapy2.build_model.build_model import build_mofa_smooth, buildBiofam
-from mofapy2.build_model.save_model import saveModel
+from mofapy2.build_model.build_model import BuildMofaSmooth, BuildBiofam
+from mofapy2.build_model.save_model import SaveModel
 from mofapy2.build_model.train_model import train_model
 from mofapy2.build_model.utils import guess_likelihoods, process_data
 
@@ -141,7 +141,7 @@ class entry_point:
         for g in range(self.dimensionalities["G"]):
             if not isinstance(sample_cov[g], np.ndarray):
                 if isinstance(sample_cov[g], pd.DataFrame):
-                    sample_cov[g] = sample_cov[g].values
+                    sample_cov[g] = sample_cov[g].to_numpy()
                 else:
                     msg = "`sample_cov` is not a numpy.ndarray or a pandas dataframe"
                     logger.error(msg)
@@ -260,8 +260,11 @@ class entry_point:
 
         # Define features names
         if features_names is None:
-            console.print("Features names not provided, using default naming convention:")
-            console.print("- feature1_view1, featureD_viewM\n")
+            console.print(
+                "Features names not provided, using default naming convention:",
+                "- feature1_view1, featureD_viewM",
+                sep="\n",
+            )
             self.data_opts["features_names"] = [[f"feature{d}_view{m}" for d in range(D[m])] for m in range(M)]
         else:
             assert len(features_names) == self.dimensionalities["M"], (
@@ -271,8 +274,9 @@ class entry_point:
 
         # Define groups names
         if groups_names is None:
-            console.print("Groups names not provided, using default naming convention:")
-            console.print("- group1, group2, ..., groupG\n")
+            console.print(
+                "Groups names not provided, using default naming convention:", "- group1, group2, ..., groupG", sep="\n"
+            )
             self.data_opts["groups_names"] = ["group" + str(g) for g in range(G)]
         else:
             assert len(groups_names) == self.dimensionalities["G"], (
@@ -317,12 +321,12 @@ class entry_point:
         self.data_opts["samples_groups"] = np.concatenate(self.data_opts["samples_groups"])
 
         # If everything successful, print verbose message
-        for m in range(M):
-            for g in range(G):
-                console.print(
-                    f"Successfully loaded view='{self.data_opts['views_names'][m]!s}' group='{self.data_opts['groups_names'][g]!s}' with N={data[m][g].shape[0]} samples and D={data[m][g].shape[1]} features...\n"
-                )
-        console.print("\n")
+        views_str = [
+            f"Successfully loaded view='{self.data_opts['views_names'][m]!s}' group='{self.data_opts['groups_names'][g]!s}' with N={data[m][g].shape[0]} samples and D={data[m][g].shape[1]} features...\n"
+            for g in range(G)
+            for m in range(M)
+        ]
+        console.print("\n".join(views_str))
 
         # Store intercepts
         self.intercepts = [[np.nanmean(data[m][g], axis=0) for g in range(G)] for m in range(M)]
@@ -1034,17 +1038,24 @@ class entry_point:
         # Define likelihoods
         self.model_opts["likelihoods"] = self.likelihoods
 
-        console.print(
+        model_opts_str = [
             "Model options:",
             f"- Automatic Relevance Determination prior on the factors: {ard_factors!s}",
             f"- Automatic Relevance Determination prior on the weights: {ard_weights!s}",
             f"- Spike-and-slab prior on the factors: {spikeslab_factors!s}",
             f"- Spike-and-slab prior on the weights: {spikeslab_weights!s}",
             "Likelihoods:",
+        ]
+
+        for m in range(self.dimensionalities["M"]):
+            model_opts_str.append(
+                f"- View {m} ([bold]{self.data_opts['views_names'][m]!s}[/bold]): [green]{self.likelihoods[m]!s}[/green]"
+            )
+
+        console.print(
+            "\n".join(model_opts_str),
             sep="\n",
         )
-        for m in range(self.dimensionalities["M"]):
-            console.print(f"- View {m} ({self.data_opts['views_names'][m]!s}): [green]{self.likelihoods[m]!s}[/green]")
 
     def set_data_options(
         self,
@@ -1069,12 +1080,12 @@ class entry_point:
         # Scale views to unit variance
         self.data_opts["scale_views"] = scale_views
         if scale_views:
-            console.print("Scaling views to unit variance...")
+            console.print("Scaling views to unit variance...", end="")
 
         # Scale groups to unit variance
         self.data_opts["scale_groups"] = scale_groups
         if scale_groups:
-            console.print("Scaling groups to unit variance...")
+            console.print("Scaling groups to unit variance...", end="")
 
     def build(self):
         """Build the model"""
@@ -1107,7 +1118,7 @@ class entry_point:
 
         # Build the nodes
         if hasattr(self, "smooth_opts"):
-            tmp = build_mofa_smooth(
+            tmp = BuildMofaSmooth(
                 self.data,
                 self.sample_cov,
                 self.dimensionalities,
@@ -1117,14 +1128,13 @@ class entry_point:
                 self.smooth_opts,
             )
         else:
-            tmp = buildBiofam(
+            tmp = BuildBiofam(
                 self.data,
                 self.dimensionalities,
                 self.data_opts,
                 self.model_opts,
                 self.train_opts,
             )
-        tmp.main()
 
         # Create BayesNet class
         if self.train_opts["stochastic"]:
@@ -1418,7 +1428,7 @@ class entry_point:
             covariates_names = self.smooth_opts["covariates_names"]
 
         # Save the model
-        tmp = saveModel(
+        tmp = SaveModel(
             model=self.model,
             outfile=outfile,
             data=self.data,

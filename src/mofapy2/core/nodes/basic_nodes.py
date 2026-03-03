@@ -29,12 +29,7 @@ class Node:
         if hasattr(self, "markov_blanket"):
             for k, v in kwargs.items():
                 if k in self.markov_blanket.keys():
-                    print(
-                        "Error: "
-                        + str(k)
-                        + " is already in the markov blanket of "
-                        + str(self)
-                    )
+                    print("Error: " + str(k) + " is already in the markov blanket of " + str(self))
                     exit(1)
                 else:
                     self.markov_blanket[k] = v

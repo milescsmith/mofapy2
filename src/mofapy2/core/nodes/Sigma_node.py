@@ -92,9 +92,7 @@ class Sigma_Node_base(Node):
         Method to initialize the components required for the covariate kernel
         """
         if self.model_groups:
-            self.covariates = np.unique(
-                transformed_sample_cov, axis=0
-            )  # distinct covariate values
+            self.covariates = np.unique(transformed_sample_cov, axis=0)  # distinct covariate values
             # non unique if no group model
             self.covidx = np.asarray(
                 [
@@ -121,9 +119,7 @@ class Sigma_Node_base(Node):
         Method to initialize the group kernel
         """
         # set group kernel
-        self.Kg = Kg_Node(
-            dim=(self.K, self.G), rank=rank, spectral_decomp=spectral_decomp
-        )
+        self.Kg = Kg_Node(dim=(self.K, self.G), rank=rank, spectral_decomp=spectral_decomp)
 
     def precompute(self, options):
         gpu_utils.gpu_mode = options["gpu_mode"]
@@ -458,9 +454,7 @@ class Sigma_Node_base(Node):
             for r in range(self.Kg.rank):
                 drg = -1 / np.diag(Gmat_unscaled_sqrt) * x[r, :]
                 for g in range(self.G):
-                    tmp = np.outer(
-                        np.diag(Gmat_unscaled_sqrt), drg[g] * np.eye(self.G)[g, :]
-                    )
+                    tmp = np.outer(np.diag(Gmat_unscaled_sqrt), drg[g] * np.eye(self.G)[g, :])
                     AN_x = tmp + tmp.transpose()
                     tmp = np.outer(x[r, :], np.eye(self.G)[g, :])
                     AZ_x = tmp + tmp.transpose()
@@ -582,9 +576,7 @@ class Sigma_Node_base(Node):
                     bounds = [(1e-10, 1 - 1e-10)]  # zeta
                     bounds = bounds + [(1e-10, 1 - 1e-10)]  # sigma
                     bounds = bounds + [(-1, 1)] * self.G * self.Kg.rank  # x
-                    par0 = [1, 1] + [
-                        0
-                    ] * self.G * self.Kg.rank  # parameters for zero lengthscale/scale (unstrucutred)
+                    par0 = [1, 1] + [0] * self.G * self.Kg.rank  # parameters for zero lengthscale/scale (unstrucutred)
                     # par0 = [1, 0] + [1/np.sqrt(self.Kg.rank)] * self.G *  self.Kg.rank # parameters for zero lengthscale (fully connected groups)
                 else:
                     bounds = [(1e-10, 1 - 1e-10)]  # zeta
@@ -643,9 +635,7 @@ class Sigma_Node_base(Node):
             # save optimized kernel paramters
             self.Kc.set_gridix(best_lidx, k)
             if self.model_groups:
-                self.Kg.set_parameters(
-                    x=best_x, sigma=best_sigma, k=k, spectral_decomp=self.kronecker
-                )
+                self.Kg.set_parameters(x=best_x, sigma=best_sigma, k=k, spectral_decomp=self.kronecker)
 
             self.zeta[k] = best_zeta
 

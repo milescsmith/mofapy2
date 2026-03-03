@@ -5,11 +5,13 @@ Module to build a bioFAM model
 
 # from joblib import Parallel, delayed
 
-from mofapy2.build_model.init_model import initModel
-from mofapy2.build_model.utils import *
+from abc import ABC, abstractmethod
+
+from mofapy2.build_model.init_model import InitModel
 
 
-class buildModel:
+# wait... this is an abstract base class, isn't it?
+class BuildModel(ABC):
     def __init__(self, data, dimensionalities, data_opts, model_opts, train_opts):
         self.data = data
         self.dim = dimensionalities
@@ -17,30 +19,32 @@ class buildModel:
         self.model_opts = model_opts
         self.train_opts = train_opts
 
+    @abstractmethod
     def createMarkovBlankets(self):
         """Define the markov blankets"""
         pass
 
-    def createSchedule(self):
-        """Define the schedule of updates"""
-        pass
+    # @abstractmethod
+    # def createSchedule(self):
+    #     """Define the schedule of updates"""
+    #     pass
 
+    @abstractmethod
     def build_nodes(self):
         """Build all nodes"""
         pass
 
+    @abstractmethod
     def get_nodes(self):
         """Get all nodes"""
-        return self.init_model.getNodes()
+        pass
 
 
-class buildBiofam(buildModel):
+class BuildBiofam(BuildModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    def main(self):
-        # create an instance of initModel
-        self.init_model = initModel(
+        # create an instance of InitModel
+        self.init_model = InitModel(
             dim=self.dim,
             data=self.data,
             lik=self.model_opts["likelihoods"],
@@ -193,8 +197,12 @@ class buildBiofam(buildModel):
             nodes["AlphaW"].addMarkovBlanket(W=nodes["W"])
             nodes["W"].addMarkovBlanket(AlphaW=nodes["AlphaW"])
 
+    def get_nodes(self):
+        """Get all nodes"""
+        return self.init_model.getNodes()
 
-class build_mofa_smooth(buildBiofam):
+
+class BuildMofaSmooth(BuildBiofam):
     def __init__(
         self,
         data,
@@ -208,22 +216,6 @@ class build_mofa_smooth(buildBiofam):
         super().__init__(data, dimensionalities, data_opts, model_opts, train_opts)
         self.sample_cov = sample_cov
         self.smooth_opts = smooth_opts
-
-    def main(self):
-        # create an instance of initModel
-        self.init_model = initModel(
-            dim=self.dim,
-            data=self.data,
-            lik=self.model_opts["likelihoods"],
-            groups=self.data_opts["samples_groups"],
-            seed=self.train_opts["seed"],
-        )
-
-        # Build all nodes
-        self.build_nodes()
-
-        # Define markov blankets
-        self.createMarkovBlankets()
 
     def build_Z(self):
         """Build node Z for the factors"""
@@ -289,8 +281,7 @@ class build_mofa_smooth(buildBiofam):
                 warping_open_end=self.smooth_opts["warping_open_end"],
                 warping_groups=self.smooth_opts["warping_groups"],
                 opt_freq=self.smooth_opts["opt_freq"],
-                model_groups=self.smooth_opts["model_groups"],  # ,
-                # use_gpytorch  = self.model_opts['use_gpytorch']
+                model_groups=self.smooth_opts["model_groups"],
             )
         # Non-warping
         else:
@@ -305,8 +296,7 @@ class build_mofa_smooth(buildBiofam):
                 # warping_open_begin = self.smooth_opts['warping_open_begin'],
                 # warping_open_end = self.smooth_opts['warping_open_end'],
                 opt_freq=self.smooth_opts["opt_freq"],
-                model_groups=self.smooth_opts["model_groups"],  # ,
-                # use_gpytorch  = self.model_opts['use_gpytorch']
+                model_groups=self.smooth_opts["model_groups"],
             )
 
     def build_nodes(self):

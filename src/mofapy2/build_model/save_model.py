@@ -1,9 +1,12 @@
+from collections import Counter
+from collections.abc import Sequence
 from warnings import warn
 
 import h5py
 import numpy as np
 
-from mofapy2.core.nodes import *
+from mofapy2 import console
+from mofapy2.core.nodes import Multiview_Node
 
 # To keep same order of views and groups in the hdf5 file
 # h5py.get_config().track_order = True
@@ -11,10 +14,8 @@ from mofapy2.core.nodes import *
 
 def _make_unique(x):
     """Make values in the input list unique"""
-    from collections import Counter
-
     xs = list(x)
-    y = list()
+    y = []
     c = Counter()
     for item in xs:
         new_item = item
@@ -31,7 +32,7 @@ def _make_unique(x):
     return np.array(y)
 
 
-class saveModel:
+class SaveModel:
     def __init__(
         self,
         model,
@@ -55,7 +56,7 @@ class saveModel:
         # Check that the model is trained
         # NOTE: it might be not trained if saving when training is interrupted
         if not model.trained:
-            print("Note: the model to be saved is not trained.")
+            console.print("Note: the model to be saved is not trained.")
         self.model = model
 
         # Initialise hdf5 file
@@ -70,16 +71,16 @@ class saveModel:
         self.mask = [x.mask for x in model.getNodes()["Y"].getNodes()]
 
         # Initialise samples groups
-        assert len(samples_groups) == data[0].shape[0], (
-            "length of samples groups does not match the number of samples in the data"
-        )
+        if len(samples_groups) != data[0].shape[0]:
+            msg = "length of samples groups does not match the number of samples in the data"
+            raise ValueError(msg)
         self.samples_groups = samples_groups
 
         # Initialise GP prior (note groups are concatenated here)
         if sample_cov is not None:
-            assert sample_cov.shape[0] == data[0].shape[0], (
-                "length of samples covariates does not match the number of samples in the data"
-            )
+            if sample_cov.shape[0] != data[0].shape[0]:
+                msg = "length of samples covariates does not match the number of samples in the data"
+                raise ValueError(msg)
         self.sample_cov = sample_cov
 
         # Initialise intercepts
@@ -155,7 +156,7 @@ class saveModel:
                 cols = self.samples_metadata[g].columns
 
                 if len(set(cols)) != len(cols):
-                    warn("There are duplicated columns in samples metadata, some will be renamed")
+                    warn("There are duplicated columns in samples metadata, some will be renamed", stacklevel=2)
                     cols = _make_unique(cols)
                     self.samples_metadata[g].columns = cols
 
@@ -204,7 +205,7 @@ class saveModel:
                 cols = self.features_metadata[m].columns
 
                 if len(set(cols)) != len(cols):
-                    warn("There are duplicated columns in features metadata, some will be renamed")
+                    warn("There are duplicated columns in features metadata, some will be renamed", stacklevel=2)
                     cols = _make_unique(cols)
                     self.features_metadata[m].columns = cols
 
@@ -349,10 +350,10 @@ class saveModel:
     def saveExpectations(self, nodes="all"):
         # Get nodes from the model
         nodes_dic = self.model.getNodes()
-        if type(nodes) is str:
+        if isinstance(nodes, str):
             nodes = list(nodes_dic.keys()) if nodes == "all" else [nodes]
-        elif type(nodes) is list or type(nodes) is tuple:
-            assert set(nodes).issubset(
+        elif isinstance(nodes, Sequence):
+            if not set(nodes).issubset(
                 [
                     "Z",
                     "W",
@@ -365,7 +366,9 @@ class saveModel:
                     "Sigma",
                     "U",
                 ]
-            ), "Unrecognised nodes"
+            ):
+                msg = "Unrecognised nodes"
+                raise ValueError(msg)
         nodes_dic = {x: nodes_dic[x] for x in nodes if x in nodes_dic}
 
         # Define nodes with special characteristics
@@ -465,96 +468,96 @@ class saveModel:
         pass
 
     def saveParameters(self, nodes="all"):
-        print("saveParameters() is currently depreciated, TO-DO: sort factors")
-        exit()
+        msg = "saveParameters() is currently depreciated, TO-DO: sort factors"
+        raise NotImplementedError(msg)
 
-        # Get nodes from the model
-        nodes_dic = self.model.getNodes()
-        if type(nodes) is str:
-            nodes = list(nodes_dic.keys()) if nodes == "all" else [nodes]
-        elif type(nodes) is list or type(nodes) is tuple:
-            assert set(nodes).issubset(["Z", "W", "Tau", "AlphaW", "AlphaZ", "ThetaZ", "ThetaW", "Sigma", "U"]), (
-                "Unrecognised nodes"
-            )
-        nodes_dic = {x: nodes_dic[x] for x in nodes if x in nodes_dic}
+        # # Get nodes from the model
+        # nodes_dic = self.model.getNodes()
+        # if type(nodes) is str:
+        #     nodes = list(nodes_dic.keys()) if nodes == "all" else [nodes]
+        # elif type(nodes) is list or type(nodes) is tuple:
+        #     assert set(nodes).issubset(["Z", "W", "Tau", "AlphaW", "AlphaZ", "ThetaZ", "ThetaW", "Sigma", "U"]), (
+        #         "Unrecognised nodes"
+        #     )
+        # nodes_dic = {x: nodes_dic[x] for x in nodes if x in nodes_dic}
 
-        # Define nodes which special characteristics
-        # (note that this is ugly and is not proper class-oriented programming)
-        multigroup_nodes = ["Y", "Tau", "Z"]
+        # # Define nodes which special characteristics
+        # # (note that this is ugly and is not proper class-oriented programming)
+        # multigroup_nodes = ["Y", "Tau", "Z"]
 
-        # Create HDF5 group
-        grp = self.hdf5.create_group("parameters")
+        # # Create HDF5 group
+        # grp = self.hdf5.create_group("parameters")
 
-        # Iterate over nodes
-        for n in nodes_dic:
-            # Create subgroup for the node
-            node_subgrp = grp.create_group(n)
+        # # Iterate over nodes
+        # for n in nodes_dic:
+        #     # Create subgroup for the node
+        #     node_subgrp = grp.create_group(n)
 
-            # Collect node parameters
-            par = nodes_dic[n].getParameters()
+        #     # Collect node parameters
+        #     par = nodes_dic[n].getParameters()
 
-            # Multi-view nodes
-            if isinstance(nodes_dic[n], Multiview_Node):
-                for m in range(nodes_dic[n].M):
-                    # Create subgroup for the view
-                    view_subgrp = node_subgrp.create_group(self.views_names[m])
+        #     # Multi-view nodes
+        #     if isinstance(nodes_dic[n], Multiview_Node):
+        #         for m in range(nodes_dic[n].M):
+        #             # Create subgroup for the view
+        #             view_subgrp = node_subgrp.create_group(self.views_names[m])
 
-                    # Multi-groups nodes
-                    if n in multigroup_nodes:
-                        for g in self.groups_names:
-                            grp_subgrp = view_subgrp.create_group(g)
+        #             # Multi-groups nodes
+        #             if n in multigroup_nodes:
+        #                 for g in self.groups_names:
+        #                     grp_subgrp = view_subgrp.create_group(g)
 
-                            # create hdf5 data set for the parameter
-                            samp_indices = np.where(np.array(self.samples_groups) == g)[0]
+        #                     # create hdf5 data set for the parameter
+        #                     samp_indices = np.where(np.array(self.samples_groups) == g)[0]
 
-                            for k in par[m].keys():
-                                tmp = par[m][k][samp_indices, :]
-                                grp_subgrp.create_dataset(
-                                    k,
-                                    data=tmp,
-                                    compression="gzip",
-                                    compression_opts=self.compression_level,
-                                )
+        #                     for k in par[m].keys():
+        #                         tmp = par[m][k][samp_indices, :]
+        #                         grp_subgrp.create_dataset(
+        #                             k,
+        #                             data=tmp,
+        #                             compression="gzip",
+        #                             compression_opts=self.compression_level,
+        #                         )
 
-                    # Single-groups nodes
-                    else:
-                        for k in par[m].keys():
-                            if k not in ["mean_B0", "var_B0"]:
-                                tmp = par[m][k].T
-                                view_subgrp.create_dataset(
-                                    k,
-                                    data=tmp,
-                                    compression="gzip",
-                                    compression_opts=self.compression_level,
-                                )
+        #             # Single-groups nodes
+        #             else:
+        #                 for k in par[m].keys():
+        #                     if k not in ["mean_B0", "var_B0"]:
+        #                         tmp = par[m][k].T
+        #                         view_subgrp.create_dataset(
+        #                             k,
+        #                             data=tmp,
+        #                             compression="gzip",
+        #                             compression_opts=self.compression_level,
+        #                         )
 
-            # Single-view nodes
-            # Multi-group nodes
-            elif n in multigroup_nodes:
-                for g in self.groups_names:
-                    grp_subgrp = node_subgrp.create_group(g)
-                    samp_indices = np.where(np.array(self.samples_groups) == g)[0]
+        #     # Single-view nodes
+        #     # Multi-group nodes
+        #     elif n in multigroup_nodes:
+        #         for g in self.groups_names:
+        #             grp_subgrp = node_subgrp.create_group(g)
+        #             samp_indices = np.where(np.array(self.samples_groups) == g)[0]
 
-                    for k in par.keys():
-                        tmp = par[k][samp_indices, :].T
-                        grp_subgrp.create_dataset(
-                            k,
-                            data=tmp,
-                            compression="gzip",
-                            compression_opts=self.compression_level,
-                        )
+        #             for k in par.keys():
+        #                 tmp = par[k][samp_indices, :].T
+        #                 grp_subgrp.create_dataset(
+        #                     k,
+        #                     data=tmp,
+        #                     compression="gzip",
+        #                     compression_opts=self.compression_level,
+        #                 )
 
-            # Single-group nodes
-            else:
-                for k in par.keys():
-                    node_subgrp.create_dataset(
-                        k,
-                        data=par[k].T,
-                        compression="gzip",
-                        compression_opts=self.compression_level,
-                    )
+        #     # Single-group nodes
+        #     else:
+        #         for k in par.keys():
+        #             node_subgrp.create_dataset(
+        #                 k,
+        #                 data=par[k].T,
+        #                 compression="gzip",
+        #                 compression_opts=self.compression_level,
+        #             )
 
-        pass
+        # pass
 
     def saveModelOptions(self):
         # Subset model options
@@ -598,7 +601,7 @@ class saveModel:
         # Replace dictionaries (not supported in hdf5) by lists
         # opts = self.train_opts
         for k, v in opts.copy().items():
-            if type(v) == dict:
+            if isinstance(v, dict):
                 for k1, v1 in v.items():
                     opts[str(k) + "_" + str(k1)] = v1
                 opts.pop(k)

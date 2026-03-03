@@ -2,25 +2,57 @@
 Module to initialise a bioFAM model
 """
 
+from typing import Literal
+
 import numpy as np
+import numpy.typing as npt
 import sklearn.decomposition
 from scipy import stats
 from sklearn.impute import SimpleImputer
 
-from mofapy2.core.nodes import *
+from mofapy2.core.nodes import (
+    AlphaW_Node,
+    AlphaZ_Node,
+    Bernoulli_PseudoY_Jaakkola,
+    Multiview_Mixed_Node,
+    Multiview_Variational_Node,
+    Poisson_PseudoY,
+    Sigma_Node,
+    Sigma_Node_sparse,
+    Sigma_Node_warping,
+    SW_Node,
+    SZ_Node,
+    Tau_Jaakkola,
+    Tau_Seeger,
+    TauD_Node,
+    ThetaW_Node,
+    ThetaZ_Node,
+    U_GP_Node_mv,
+    W_Node,
+    Y_Node,
+    Z_GP_Node_mv,
+    Z_Node,
+    Zero_Inflated_PseudoY_Jaakkola,
+    Zero_Inflated_Tau_Jaakkola,
+    ZgU_node,
+)
 
 
-class initModel:
+class InitModel:
     def __init__(self, dim, data, lik, groups, seed):
         """
-        PARAMETERS
-        dim: dictionary with keyworded dimensionalities:
-            N for the number of samples
-            M for the number of views
-            K for the number of factors or latent variables,
-            D for the number of features per view
-        data: list of length M with numpy arrays of dimensionality (N,Dm)
-        lik: list of strings with length M
+        Parameters
+        ----------
+        dim : dict[str, int]
+            dictionary with keyworded dimensionalities:
+            * N for the number of samples
+            * M for the number of views
+            * K for the number of factors or latent variables,
+            * D for the number of features per view
+        data : list[npt.ArrayLike]
+            list of length M with numpy arrays of dimensionality (N,Dm)
+        lik : list[str]
+            list of strings with length M
             likelihood for each view, choose from ('gaussian','poisson','bernoulli')
         """
 
@@ -28,7 +60,9 @@ class initModel:
         np.random.seed(seed)
 
         # Set groups
-        assert len(groups) == dim["N"], "sample groups labels do not match number of samples"
+        if len(groups) != dim["N"]:
+            msg = "sample groups labels do not match number of samples"
+            raise ValueError(msg)
         self.groups = groups
         self.groups_ix = np.unique(groups, return_inverse=True)[1]  # convert groups into integers from 0 to n_groups
 
@@ -48,35 +82,45 @@ class initModel:
 
         self.nodes = {}
 
+    # my gods these `init` fuctions are repetitve. should probably refactor into a single function?
     def initZ(
         self,
-        pmean=0.0,
-        pvar=1.0,
-        qmean="random",
-        qvar=1.0,
-        qE=None,
-        qE2=None,
-        Y=None,
-        impute=False,
-        weight_views=False,
+        pmean: float = 0.0,
+        pvar: float = 1.0,
+        qmean: Literal["random", "pca", "orthogonal"] = "random",
+        qvar: float = 1.0,
+        qE: float | None = None,
+        qE2: float | None = None,
+        Y: npt.ArrayLike | None = None,
+        impute: bool = False,
+        weight_views: bool = False,
     ):
         """Method to initialise the latent variables
 
-        PARAMETERS
+        Parameters
         ----------
-        pmean: mean of the prior distribution
-        pvar: (co)variance of the prior distribution
-        qmean: initialisation of the mean of the variational distribution
-            "random" for a random initialisation sampled from a standard normal distribution
-            "pca" for an initialisation based on PCA
-            "orthogonal" for a random initialisation with orthogonal factors
-        qvar: initial value of the (co)variance of the variational distribution
-        qE: initial value of the expectation of the variational distribution
-        qE2: initial value of the second moment of the variational distribution
-        Y: matrix to run PCA on (when qmean="pca")
-        impute: logical value if to perform imputation before running PCA,
+        pmean : float
+            mean of the prior distribution
+        pvar : float
+            (co)variance of the prior distribution
+        qmean : Literal["random", "pca", "orthogonal"]
+            initialisation of the mean of the variational distribution
+            * "random" for a random initialisation sampled from a standard normal distribution
+            * "pca" for an initialisation based on PCA
+            * "orthogonal" for a random initialisation with orthogonal factors
+        qvar : float
+            initial value of the (co)variance of the variational distribution
+        qE : float
+            initial value of the expectation of the variational distribution
+        qE2 : float
+            initial value of the second moment of the variational distribution
+        Y : npt.ArrayLike
+            matrix to run PCA on (when qmean="pca")
+        impute : logical, default=False
+            logical value if to perform imputation before running PCA,
             this is only applicable when qmean="pca" and missing values (np.NaN) are present in the data
-        weight_views: logical whether to weight the ELBO
+        weight_views : bool, default=False
+            logical whether to weight the ELBO
         """
 
         ## Initialise prior distribution (P)
@@ -91,23 +135,23 @@ class initModel:
 
         # mean
         if qmean is not None:
-            if isinstance(qmean, str):
-                # Random initialisation
-                if qmean == "random":
+            match qmean:
+                case str() if qmean == "random":
                     qmean = stats.norm.rvs(loc=0, scale=1, size=(self.N, self.K))
-
-                # Random initialisation with orthogonal factors
-                elif qmean == "orthogonal":
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
+                case str() if qmean == "orthogonal":
+                    # Random initialisation with orthogonal factors
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                     pca.fit(stats.norm.rvs(loc=0, scale=1, size=(self.N, 9999)).T)
                     qmean = pca.components_.T
-
-                # PCA initialisation
-                elif qmean == "pca":
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
+                case str() if qmean == "pca":
+                    # PCA initialisation
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
-                    Ytmp = np.concatenate(Y, axis=1)
+                    Ytmp = np.concatenate(Y, axis=1) # I don't understand - how is this concatenating a single array?
+                    # Ytmp = np.ravel(Y).reshape(-1,1) #this is what I think the above is attempting to do? need to test it.
 
-                    if impute == True:
+                    if impute:
                         if np.any(np.isnan(Ytmp)):
                             imp = SimpleImputer(missing_values=np.nan, strategy="mean")
                             imp.fit(Ytmp)
@@ -116,21 +160,21 @@ class initModel:
                     pca.fit(Ytmp)
                     qmean = pca.transform(Ytmp)
 
-                # scale factor values from -1 to 1 (per factor)
-                qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
+                    # scale factor values from -1 to 1 (per factor)
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
 
-            elif isinstance(qmean, np.ndarray):
-                assert qmean.shape == (
-                    self.N,
-                    self.K,
-                ), "Wrong shape for the expectation of the Q distribution of Z"
-
-            elif isinstance(qmean, (int, float)):
-                qmean = np.ones((self.N, self.K)) * qmean
-
-            else:
-                print("Wrong initialisation for Z")
-                exit()
+                case np.ndarray():
+                    if qmean.shape != (
+                        self.N,
+                        self.K,
+                    ):
+                        msg = "Wrong shape for the expectation of the Q distribution of Z"
+                        raise ValueError(msg)
+                case int() | float():
+                    qmean = np.ones((self.N, self.K)) * qmean
+                case _:
+                    msg = "Wrong initialisation for Z"
+                    raise ValueError(msg)
 
         # Initialise the node
         self.nodes["Z"] = Z_Node(
@@ -146,33 +190,41 @@ class initModel:
 
     def initZ_smooth(
         self,
-        pmean=0.0,
-        pvar=1.0,
-        qmean="random",
-        qvar=1.0,
-        qE=None,
-        qE2=None,
-        Y=None,
-        impute=False,
-        weight_views=False,
+        pmean: float = 0.0,
+        pvar: float = 1.0,
+        qmean: Literal["random", "pca", "orthogonal"] = "random",
+        qvar: float = 1.0,
+        qE: float | None = None,
+        Y: npt.ArrayLike | None = None,
+        impute: bool = False,
+        weight_views: bool = False,
     ):
         """Method to initialise the latent variables
 
         PARAMETERS
         ----------
-        pmean: mean of the prior distribution
-        pvar: (co)variance of the prior distribution
-        qmean: initialisation of the mean of the variational distribution
-            "random" for a random initialisation sampled from a standard normal distribution
-            "pca" for an initialisation based on PCA
-            "orthogonal" for a random initialisation with orthogonal factors
-        qvar: initial value of the (co)variance of the variational distribution
-        qE: initial value of the expectation of the variational distribution
-        qE2: initial value of the second moment of the variational distribution
-        Y: matrix to run PCA on (when qmean="pca")
-        impute: logical value if to perform imputation before running PCA,
-            this is only applicable when qmean="pca" and missing values (np.NaN) are present in the data
-        weight_views: logical whether to weight the ELBO
+        pmean :
+            mean of the prior distribution
+        pvar :
+            (co)variance of the prior distribution
+        qmean :
+            initialisation of the mean of the variational distribution
+            * "random" for a random initialisation sampled from a standard normal distribution
+            * "pca" for an initialisation based on PCA
+            * "orthogonal" for a random initialisation with orthogonal factors
+        qvar :
+            initial value of the (co)variance of the variational distribution
+        qE :
+            initial value of the expectation of the variational distribution
+        qE2 :
+            initial value of the second moment of the variational distribution
+        Y :
+            matrix to run PCA on (when qmean="pca")
+        impute :
+            logical value if to perform imputation before running PCA, this is only applicable when qmean="pca" and
+            missing values (np.NaN) are present in the data
+        weight_views :
+            logical whether to weight the ELBO
         """
 
         ## Initialise prior distribution (P)
@@ -189,23 +241,23 @@ class initModel:
 
         # mean
         if qmean is not None:
-            if isinstance(qmean, str):
-                # Random initialisation
-                if qmean == "random":
+            match qmean:
+                case str() if qmean == "random":
+                    # Random initialisation
                     qmean = stats.norm.rvs(loc=0, scale=1, size=(self.N, self.K))
-
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
                 # Random initialisation with orthogonal factors
-                elif qmean == "orthogonal":
+                case str() if qmean == "orthogonal":
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                     pca.fit(stats.norm.rvs(loc=0, scale=1, size=(self.N, 9999)).T)
                     qmean = pca.components_.T
-
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
                 # PCA initialisation
-                elif qmean == "pca":
+                case str() if qmean == "pca":
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                     Ytmp = np.concatenate(Y, axis=1)
 
-                    if impute == True:
+                    if impute:
                         if np.any(np.isnan(Ytmp)):
                             imp = SimpleImputer(missing_values=np.nan, strategy="mean")
                             imp.fit(Ytmp)
@@ -213,22 +265,22 @@ class initModel:
 
                     pca.fit(Ytmp)
                     qmean = pca.transform(Ytmp)
+                    # scale factor values from -1 to 1 (per factor)
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
 
-                # scale factor values from -1 to 1 (per factor)
-                qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
+                case np.ndarray():
+                    if qmean.shape != (
+                        self.N,
+                        self.K,
+                    ):
+                        msg = "Wrong shape for the expectation of the Q distribution of Z"
+                        raise ValueError(msg)
 
-            elif isinstance(qmean, np.ndarray):
-                assert qmean.shape == (
-                    self.N,
-                    self.K,
-                ), "Wrong shape for the expectation of the Q distribution of Z"
-
-            elif isinstance(qmean, (int, float)):
-                qmean = np.ones((self.N, self.K)) * qmean
-
-            else:
-                print("Wrong initialisation for Z")
-                exit()
+                case int() | float():
+                    qmean = np.ones((self.N, self.K)) * qmean
+                case _:
+                    msg = "Wrong initialisation for Z"
+                    raise ValueError(msg)
 
         # Initialise the node
         self.nodes["Z"] = Z_GP_Node_mv(
@@ -250,37 +302,46 @@ class initModel:
 
     def initU(
         self,
-        pmean=0.0,
-        pvar=1.0,
-        qmean=0,
-        qvar=1.0,
-        qE=None,
-        qE2=None,
-        Y=None,
-        impute=True,
+        pmean: float = 0.0,
+        pvar: float = 1.0,
+        qmean: float = 0,
+        qvar: float = 1.0,
+        qE: float | None = None,
         idx_inducing=None,
-        weight_views=False,
+        weight_views: bool = False,
     ):  # prior hanp.diagonal covariance here, ls optimiation in Sigma node
         """Method to initialise the inducing points
 
-         PARAMETERS
-         ----------
-        pmean: mean of the prior distribution
-        pvar: (co)variance of the prior distribution
-         qmean: initialisation of the mean of the variational distribution
-             "random" for a random initialisation sampled from a standard normal distribution
-             "pca" for an initialisation based on PCA
-             "orthogonal" for a random initialisation with orthogonal factors
-         qvar: initial value of the variance of the variational distribution
-         qE: initial value of the expectation of the variational distribution
-         qE2: initial value of the second moment of the variational distribution
-         Y: matrix to run PCA on (when qmean="pca")
-         impute: logical value if to perform imputation before running PCA,
-             this is only applicable when qmean="pca" and missing values (np.NaN) are present in the data
-         GP_factors: logical whether to use a Z node with GP prior or not
+        Parameters
+        ----------
+        pmean :
+            mean of the prior distribution
+        pvar :
+            (co)variance of the prior distribution
+        qmean :
+            # No, this isn't right... everything downstream expects a number
+            initialisation of the mean of the variational distribution
+            * "random" for a random initialisation sampled from a standard normal distribution
+            * "pca" for an initialisation based on PCA
+            * "orthogonal" for a random initialisation with orthogonal factors
+        qvar : float
+            initial value of the variance of the variational distribution
+        qE : float, optional
+            initial value of the expectation of the variational distribution
+        qE2 :
+            initial value of the second moment of the variational distribution
+        Y :
+            matrix to run PCA on (when qmean="pca")
+        impute :
+            logical value if to perform imputation before running PCA,
+            this is only applicable when qmean="pca" and missing values (np.NaN) are present in the data
+        GP_factors :
+            logical whether to use a Z node with GP prior or not
         """
 
-        assert idx_inducing is not None, "Stop: U nodes is used without inducing points"
+        if idx_inducing is None:
+            msg = "Stop: U nodes is used without inducing points"
+            raise ValueError(msg)
 
         Nu = len(idx_inducing)
 
@@ -291,6 +352,7 @@ class initModel:
             pvar = np.array([np.eye(Nu) * pvar for k in range(self.K)])
 
         ## Initialise variational distribution (Q)
+        # here! how am I supposed to multiply a matrix by a string?
         qmean = np.ones((Nu, self.K)) * qmean
 
         # variance
@@ -321,7 +383,9 @@ class initModel:
         idx_inducing=None,
         weight_views=False,
     ):
-        assert idx_inducing is not None, "Stop: ZgU nodes is used without inducing points"
+        if idx_inducing is None:
+            msg = "Stop: ZgU nodes is used without inducing points"
+            raise ValueError(msg)
 
         ## Initialise prior distribution (P)
 
@@ -335,47 +399,44 @@ class initModel:
 
         # mean
         if qmean is not None:
-            if isinstance(qmean, str):
+            match qmean:
                 # Random initialisation
-                if qmean == "random":
+                case str() if qmean == "random":
                     qmean = stats.norm.rvs(loc=0, scale=1, size=(self.N, self.K))
-
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
                 # Random initialisation with orthogonal factors
-                elif qmean == "orthogonal":
+                case str() if qmean == "orthogonal":
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                     pca.fit(stats.norm.rvs(loc=0, scale=1, size=(self.N, 9999)).T)
                     qmean = pca.components_.T
-
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
                 # PCA initialisation
-                elif qmean == "pca":
+                case str() if qmean == "pca":
                     # whiten=True scales the principal components to match the prior N(0,1)
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                     Ytmp = np.concatenate(Y, axis=1)
 
-                    if impute == True:
+                    if impute:
                         if np.any(np.isnan(Ytmp)):
                             imp = SimpleImputer(missing_values=np.nan, strategy="mean")
                             imp.fit(Ytmp)
                             Ytmp = imp.transform(Ytmp)
-
                     pca.fit(Ytmp)
                     qmean = pca.transform(Ytmp)
-
-                # scale factor values from -1 to 1 (per factor)
-                qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
-
-            elif isinstance(qmean, np.ndarray):
-                assert qmean.shape == (
-                    self.N,
-                    self.K,
-                ), "Wrong shape for the expectation of the Q distribution of Z"
-
-            elif isinstance(qmean, (int, float)):
-                qmean = np.ones((self.N, self.K)) * qmean
-
-            else:
-                print("Wrong initialisation for Z")
-                exit()
+                    # scale factor values from -1 to 1 (per factor)
+                    qmean = 2.0 * (qmean - np.min(qmean, axis=0)) / np.ptp(qmean, axis=0) - 1
+                case np.ndarray():
+                    if qmean.shape != (
+                        self.N,
+                        self.K,
+                    ):
+                        msg = "Wrong shape for the expectation of the Q distribution of Z"
+                        raise ValueError(msg)
+                case int() | float():
+                    qmean = np.ones((self.N, self.K)) * qmean
+                case _:
+                    msg = "Wrong initialisation for Z"
+                    raise ValueError(msg)
 
         self.nodes["Z"] = ZgU_node(
             dim=(self.N, self.K),
@@ -396,7 +457,6 @@ class initModel:
         n_grid=10,
         opt_freq=10,
         model_groups=False,
-        use_gpytorch=False,
     ):
         self.Sigma = Sigma_Node(
             dim=(self.K,),
@@ -417,7 +477,6 @@ class initModel:
         idx_inducing=None,
         opt_freq=10,
         model_groups=False,
-        use_gpytorch=False,
     ):
         self.Sigma = Sigma_Node_sparse(
             dim=(self.K,),
@@ -443,7 +502,6 @@ class initModel:
         warping_groups=None,
         opt_freq=10,
         model_groups=False,
-        use_gpytorch=False,
     ):
         self.Sigma = Sigma_Node_warping(
             dim=(self.K,),
@@ -493,14 +551,14 @@ class initModel:
         ## Initialise prior distribution (P)
 
         ## Initialise variational distribution (Q)
-        if isinstance(qmean_T1, str):
-            if qmean_T1 == "random":
+        match qmean_T1:
+            case str() if qmean_T1 == "random":
                 qmean_T1 = stats.norm.rvs(loc=0, scale=1, size=(self.N, self.K))
-            elif qmean_T1 == "pca":
+            case str() if qmean_T1 == "pca":
                 pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                 Ytmp = np.concatenate(Y, axis=1)
 
-                if impute == True:
+                if impute:
                     if np.any(np.isnan(Ytmp)):
                         imp = SimpleImputer(missing_values=np.nan, strategy="mean")
                         imp.fit(Ytmp)
@@ -508,19 +566,20 @@ class initModel:
 
                 pca.fit(Ytmp)
                 qmean_T1 = pca.transform(Ytmp)
-            else:
-                print("%s initialisation not implemented for Z" % qmean_T1)
-                exit()
+            case str():
+                msg = f"{qmean_T1} initialisation not implemented for Z"
+                raise ValueError(msg)
 
-        elif isinstance(qmean_T1, np.ndarray):
-            assert qmean_T1.shape == (self.N, self.K), "Wrong dimensionality"
+            case np.ndarray():
+                if qmean_T1.shape != (self.N, self.K):
+                    msg = f"Wrong dimensionality for qmean_T1: expected {(self.N, self.K)}, got {qmean_T1.shape}"
+                    raise ValueError(msg)
 
-        elif isinstance(qmean_T1, (int, float)):
-            qmean_T1 *= np.ones((self.N, self.K))
-
-        else:
-            print("Wrong initialisation for Z")
-            exit(1)
+            case int() | float():
+                qmean_T1 *= np.ones((self.N, self.K))
+            case _:
+                msg = "Wrong initialisation for Z"
+                raise ValueError(msg)
 
         self.nodes["Z"] = SZ_Node(
             dim=(self.N, self.K),
@@ -540,17 +599,32 @@ class initModel:
             weight_views=weight_views,
         )
 
-    def initW(self, pmean=0.0, pvar=1.0, qmean="random", qvar=1.0, qE=None, qE2=None, Y=None):
+    def initW(
+        self,
+        pmean: float = 0.0,
+        pvar: float = 1.0,
+        qmean: Literal["random", "pca"] | npt.ArrayLike = "random",
+        qvar: float = 1.0,
+        qE=None,
+        qE2=None,
+        Y=None,
+    ):
         """Method to initialise the weights
 
-        PARAMETERS
+        Parameters
         ----------
-        pmean: mean of the prior distribution
-        pvar: variance of the prior distribution
-        qmean: initial value of the mean of the variational distribution
-        qvar: initial value of the variance of the variational distribution
-        qE: initial value of the expectation of the variational distribution
-        qE2: initial value of the second moment of the variational distribution
+        pmean :
+            mean of the prior distribution
+        pvar :
+            variance of the prior distribution
+        qmean :
+            initial value of the mean of the variational distribution
+        qvar :
+            initial value of the variance of the variational distribution
+        qE :
+            initial value of the expectation of the variational distribution
+        qE2 :
+            initial value of the second moment of the variational distribution
         """
 
         W_list = [None] * self.M
@@ -568,33 +642,31 @@ class initModel:
 
             # mean
             if qmean is not None:
-                if isinstance(qmean, str):
-                    # Random initialisation
-                    if qmean == "random":
-                        qmean_m = stats.norm.rvs(loc=0, scale=1.0, size=(self.D[m], self.K))
-
-                    elif qmean_S1 == "pca":
-                        # print("Initialising weights with PCA solution")
-                        pca = sklearn.decomposition.PCA(
-                            n_components=self.K, whiten=True
-                        )
-                        pca.fit(Y[m])
-                        qmean_S1_tmp = pca.components_.T
-
-                elif isinstance(qmean, np.ndarray):
-                    assert qmean.shape == (
-                        self.D[m],
-                        self.K,
-                    ), "Wrong shape for the expectation of the Q distribution of W"
-                    qmean_m = qmean
-
-                elif isinstance(qmean, (int, float)):
-                    qmean_m = np.ones((self.D[m], self.K)) * qmean
-
-                else:
-                    print("Wrong initialisation for W")
-                    exit()
-
+                match qmean:
+                    case str():
+                        # Random initialisation
+                        if qmean == "random":
+                            qmean_m = stats.norm.rvs(loc=0, scale=1.0, size=(self.D[m], self.K))
+                        elif qmean == "pca":
+                            # print("Initialising weights with PCA solution")
+                            pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
+                            pca.fit(Y[m])
+                            # Why did this assign the transposed PCA to `qmean_S1_tmp` instead of `qmean_m`? Was this a bug?
+                            # qmean_S1_tmp = pca.components_.T
+                            qmean_m = pca.components_.T
+                    case np.ndarray():
+                        if qmean.shape != (
+                            self.D[m],
+                            self.K,
+                        ):
+                            msg = f"Wrong shape for the expectation of the Q distribution of W: expected {(self.D[m], self.K)}, got {qmean.shape}"
+                            raise ValueError(msg)
+                        qmean_m = qmean
+                    case int() | float():
+                        qmean_m = np.ones((self.D[m], self.K)) * qmean
+                    case _:
+                        msg = "Wrong initialisation for W"
+                        raise ValueError(msg)
             else:
                 qmean_m = None
 
@@ -641,39 +713,34 @@ class initModel:
             ## Initialise prior distribution (P)
 
             ## Initialise variational distribution (Q)
-            if isinstance(qmean_S1, str):
-                if qmean_S1 == "random":
+            match qmean_S1:
+                case str() if qmean_S1 == "random":
                     qmean_S1_tmp = stats.norm.rvs(loc=0, scale=1.0, size=(self.D[m], self.K))
-                elif qmean_S1 == "pca":
-                    # if np.any(np.isnan(Y[m])):
-                    #     print("Initialising weights with PCA solution, but data has missing values. Doing quick feature-wise mean imputation (just for the initialisation)... ")
-                    #     # TO-DO: BE CAREFUL WITH NON-GAUSSIAN DATA...
-                    #     from sklearn.impute import SimpleImputer
-                    #     imp = SimpleImputer(missing_values=np.nan, strategy='mean') # using the mean along each column
-                    #     imp.fit(Y[m])
-                    #     imp.transform(Y[m])
-
+                case str() if qmean_S1 == "pca":
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
                     pca.fit(Y[m])
                     qmean_S1_tmp = pca.components_.T
                     # qmean_S1_tmp /= np.nanstd(qmean_S1_tmp, axis=0) # Scale weights to unit variance
-                else:
-                    print("%s initialisation not implemented for W" % qmean_S1)
-                    exit()
+                case str():
+                    msg = f"{qmean_S1} initialisation not implemented for W"
+                    raise ValueError(msg)
 
                 # Scale weights to the variance of the view
                 # if Y is not None:
                 #     qmean_S1_tmp *= np.nanstd(Y[m])
 
-            elif isinstance(qmean_S1, np.ndarray):
-                assert qmean_S1.shape == (self.D[m], self.K), "Wrong dimensionality"
+                case np.ndarray():
+                    if qmean_S1.shape != (self.D[m], self.K):
+                        msg = f"Wrong shape for the expectation of the Q distribution of W: expected {(self.D[m], self.K)}, got {qmean_S1.shape}"
+                        raise ValueError(msg)
+                    qmean_S1_tmp = qmean_S1
 
-            elif isinstance(qmean_S1, (int, float)):
-                qmean_S1_tmp = np.ones((self.D[m], self.K)) * qmean_S1
+                case int() | float():
+                    qmean_S1_tmp = np.ones((self.D[m], self.K)) * qmean_S1
 
-            else:
-                print("Wrong initialisation for W")
-                exit(1)
+                case _:
+                    msg = "Wrong initialisation for W"
+                    raise ValueError(msg)
 
             W_list[m] = SW_Node(
                 dim=(self.D[m], self.K),
@@ -746,9 +813,7 @@ class initModel:
         alpha_list = [None] * self.M
 
         for m in range(self.M):
-            alpha_list[m] = AlphaW_Node(
-                dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE, qlnE=qlnE
-            )
+            alpha_list[m] = AlphaW_Node(dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE, qlnE=qlnE)
         self.nodes["AlphaW"] = Multiview_Variational_Node(self.M, *alpha_list)
 
     def initTau(self, pa=1e-3, pb=1e-3, qa=1.0, qb=1.0, qE=None):
@@ -879,9 +944,7 @@ class initModel:
         """
         Theta_list = [None] * self.M
         for m in range(self.M):
-            Theta_list[m] = ThetaW_Node(
-                dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE
-            )
+            Theta_list[m] = ThetaW_Node(dim=(self.K,), pa=pa, pb=pb, qa=qa, qb=qb, qE=qE)
         self.nodes["ThetaW"] = Multiview_Variational_Node(self.M, *Theta_list)
 
     def initExpectations(self, *nodes):

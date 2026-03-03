@@ -1,7 +1,7 @@
 import numpy as np
 
 from mofapy2.core import gpu_utils
-from mofapy2.core.distributions import *
+# from mofapy2.core.distributions import *
 
 # Import manually defined functions
 from .variational_nodes import MultivariateGaussian_Unobserved_Variational_Node
@@ -36,9 +36,9 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         self.idx_inducing = idx_inducing
         self.weight_views = weight_views
 
-        assert (
-            len(self.idx_inducing) == self.Nu
-        ), "Dimension of U and number of inducing points does not match"
+        if len(self.idx_inducing) != self.Nu:
+            msg = "Dimension of U and number of inducing points does not match"
+            raise ValueError(msg)
 
         # Precompute terms (inverse covariance ant its determinant for each factor) to speed up computation
         # self.p_cov = self.P.params['cov']
@@ -71,7 +71,9 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Z = self.markov_blanket["Z"].get_mini_batch()
         mask = [self.markov_blanket["Y"].nodes[m].getMask() for m in range(len(Y))]
 
-        assert "Sigma" in self.markov_blanket, "Sigma not found in Markov blanket of U node"
+        if "Sigma" not in self.markov_blanket:
+            msg = "Sigma not found in Markov blanket of U node"
+            raise ValueError(msg)
         Sigma = self.markov_blanket["Sigma"].get_mini_batch()
         SigmaUZ = Sigma["cov"][:, self.idx_inducing, :]
         p_cov_inv = Sigma["inv"]
@@ -80,9 +82,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Q = self.Q.getParameters()
         Qmean, Qcov = Q["mean"], Q["cov"]
 
-        par_up = self._updateParameters(
-            Y, W, Z, tau, Qmean, Qcov, SigmaUZ, p_cov_inv, mask
-        )
+        par_up = self._updateParameters(Y, W, Z, tau, Qmean, Qcov, SigmaUZ, p_cov_inv, mask)
 
         # Update parameters
         Q["mean"] = par_up["Qmean"]
@@ -134,9 +134,7 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
 
             # note: no Alpha scaling required here compared to Z nodes as done in the updateParameters function
             Mcross = gpu_utils.dot(p_cov_inv[k, :, :], SigmaUZ[k, :, :])
-            Mtmp = gpu_utils.dot(
-                Mcross, gpu_utils.dot(np.diag(foo[:, k]), Mcross.transpose())
-            )
+            Mtmp = gpu_utils.dot(Mcross, gpu_utils.dot(np.diag(foo[:, k]), Mcross.transpose()))
             Qcov[k, :, :] = np.linalg.inv(Mtmp + p_cov_inv[k, :, :])
             Qmean[:, k] = gpu_utils.dot(
                 Qcov[k, :, :],
@@ -150,14 +148,14 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
         Method to calculate ELBO gradients per factor - required for optimization in Sigma node
         """
         Qpar, Qexp = self.Q.getParameters(), self.Q.getExpectations()
-        Qmean, Qcov = Qpar["mean"], Qpar["cov"]
+        Qcov = Qpar["cov"]
         QE = Qexp["E"]
 
-        assert "Sigma" in self.markov_blanket, "Sigma not found in Markov blanket of U node"
+        if "Sigma" not in self.markov_blanket:
+            msg = "Sigma not found in Markov blanket of U node"
+            raise ValueError(msg)
         Sigma = self.markov_blanket["Sigma"].getExpectations()
-        p_cov = Sigma["cov"]
         p_cov_inv = Sigma["inv"]
-        p_cov_inv_logdet = Sigma["inv_logdet"]
 
         term1 = -0.5 * np.trace(gpu_utils.dot(gradSigma, p_cov_inv[k, :, :]))
         term2 = 0.5 * np.trace(
@@ -180,16 +178,15 @@ class U_GP_Node_mv(MultivariateGaussian_Unobserved_Variational_Node):
     def calculateELBO_k(self, k):
         # Collect parameters and expectations of current node
         Qpar, Qexp = self.Q.getParameters(), self.Q.getExpectations()
-        Qmean, Qcov = Qpar["mean"], Qpar["cov"]
+        Qcov = Qpar["cov"]
 
         QE = Qexp["E"]
 
-        assert (
-            "Sigma" in self.markov_blanket
-        ), "Sigma not found in Markov blanket of U node"
+        if "Sigma" not in self.markov_blanket:
+            msg = "Sigma not found in Markov blanket of U node"
+            raise ValueError(msg)
 
         Sigma = self.markov_blanket["Sigma"].getExpectations()
-        p_cov = Sigma["cov"]
         p_cov_inv = Sigma["inv"]
         p_cov_inv_logdet = Sigma["inv_logdet"]
 

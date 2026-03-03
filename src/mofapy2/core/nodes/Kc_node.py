@@ -52,9 +52,7 @@ class Kc_Node(Node):
 
         # initialise kernel matrix
         if not spectral_decomp:
-            self.Kmat = np.zeros(
-                [self.n_grid, self.C, self.C]
-            )  # kernel matrix on lengthscale grid
+            self.Kmat = np.zeros([self.n_grid, self.C, self.C])  # kernel matrix on lengthscale grid
 
         # initialise spectral decomposition
         else:

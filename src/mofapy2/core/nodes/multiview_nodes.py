@@ -58,9 +58,7 @@ class Multiview_Node(Node):
         #             self.nodes[m].addMarkovBlanket( **{ k: (v.getNodes()[m] if isinstance(v,Multiview_Node) else v) } )
 
     def getMarkovBlanket(self):
-        print(
-            "Error: Multiview nodes do not have a markov blanket, use the single-view nodes"
-        )
+        print("Error: Multiview nodes do not have a markov blanket, use the single-view nodes")
         exit(1)
 
     def removeFactors(self, idx):

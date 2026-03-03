@@ -164,10 +164,7 @@ class MultivariateGaussian_Unobserved_Variational_Node(Unobserved_Variational_No
 
         # Initialise the P and Q distributions
         self.P = MultivariateGaussian(dim=dim, mean=pmean, cov=pcov, axis_cov=axis_cov)
-        self.Q = MultivariateGaussian(
-            dim=dim, mean=qmean, cov=qcov, E=qE, axis_cov=axis_cov
-        )
-
+        self.Q = MultivariateGaussian(dim=dim, mean=qmean, cov=qcov, E=qE, axis_cov=axis_cov)
 
 
 class MultivariateGaussian_AO_Unobserved_Variational_Node(Unobserved_Variational_Node):
@@ -187,14 +184,10 @@ class MultivariateGaussian_AO_Unobserved_Variational_Node(Unobserved_Variational
 
         # Initialise the P and Q distributions
         self.P = MultivariateGaussian(dim=dim, mean=pmean, cov=pcov, axis_cov=axis_cov)
-        self.Q = MultivariateGaussian_reparam(
-            dim=dim, K=pcov, alpha=qalpha, lamb=qlamb, E=qE, axis_cov=0
-        )
+        self.Q = MultivariateGaussian_reparam(dim=dim, K=pcov, alpha=qalpha, lamb=qlamb, E=qE, axis_cov=0)
 
 
-class UnivariateGaussian_Unobserved_Variational_Node_with_MultivariateGaussian_Prior(
-    Unobserved_Variational_Node
-):
+class UnivariateGaussian_Unobserved_Variational_Node_with_MultivariateGaussian_Prior(Unobserved_Variational_Node):
     """
     Abstract class for a variational node where P(.) is a multivariate Gaussian distribution
     and Q(.) is univariate Gaussian distribution.

@@ -188,9 +188,7 @@ class Poisson_PseudoY(PseudoY_Seeger):
         # - dim (2d tuple): dimensionality of each view
         # - obs (ndarray): observed data
         # - E (ndarray): initial expected value of pseudodata
-        PseudoY_Seeger.__init__(
-            self, dim=dim, obs=obs, groups=groups, params=params, E=E
-        )
+        PseudoY_Seeger.__init__(self, dim=dim, obs=obs, groups=groups, params=params, E=E)
 
         # Initialise the observed data
         assert np.all(np.mod(self.obs, 1) == 0), "Data must not contain float numbers, only integers"
@@ -272,9 +270,7 @@ class Bernoulli_PseudoY(PseudoY_Seeger):
         # - dim (2d tuple): dimensionality of each view
         # - obs (ndarray): observed data
         # - E (ndarray): initial expected value of pseudodata
-        PseudoY_Seeger.__init__(
-            self, dim=dim, obs=obs, groups=groups, params=params, E=E
-        )
+        PseudoY_Seeger.__init__(self, dim=dim, obs=obs, groups=groups, params=params, E=E)
 
         # Initialise the observed data
         assert np.all((self.obs == 0) | (self.obs == 1)), "Data must be binary"
@@ -460,9 +456,7 @@ class Zero_Inflated_PseudoY_Jaakkola(Unobserved_Variational_Mixed_Node):
         print("using zero inflated noise model with sparsity ", self.sparsity)
 
         # initialise the jaakola node with nas and non zeros masked
-        obs_jaakola = (
-            obs.copy()
-        )  # TODO if obs is already a masked array should we update mask ?
+        obs_jaakola = obs.copy()  # TODO if obs is already a masked array should we update mask ?
         obs_jaakola[self.nonzeros] = np.nan
         # instead:?
         # self.notnas = np.logical_not(self.nas)
@@ -485,12 +479,7 @@ class Zero_Inflated_PseudoY_Jaakkola(Unobserved_Variational_Mixed_Node):
 
         for k, v in kwargs.items():
             if k in self.normal_node.markov_blanket.keys():
-                print(
-                    "Error: "
-                    + str(k)
-                    + " is already in the markov blanket of "
-                    + str(self.normal_node)
-                )
+                print("Error: " + str(k) + " is already in the markov blanket of " + str(self.normal_node))
                 exit(1)
             elif k == "Tau":
                 self.normal_node.markov_blanket[k] = v.tau_normal
@@ -555,12 +544,7 @@ class Zero_Inflated_Tau_Jaakkola(Unobserved_Variational_Mixed_Node):
 
         for k, v in kwargs.items():
             if k in self.tau_jaakola.markov_blanket.keys():
-                print(
-                    "Error: "
-                    + str(k)
-                    + " is already in the markov blanket of "
-                    + str(self.tau_jaakola)
-                )
+                print("Error: " + str(k) + " is already in the markov blanket of " + str(self.tau_jaakola))
                 exit(1)
             elif k == "Y":
                 self.tau_jaakola.markov_blanket[k] = v.jaakola_node
@@ -574,12 +558,7 @@ class Zero_Inflated_Tau_Jaakkola(Unobserved_Variational_Mixed_Node):
 
         for k, v in kwargs.items():
             if k in self.tau_normal.markov_blanket.keys():
-                print(
-                    "Error: "
-                    + str(k)
-                    + " is already in the markov blanket of "
-                    + str(self.tau_normal)
-                )
+                print("Error: " + str(k) + " is already in the markov blanket of " + str(self.tau_normal))
                 exit(1)
             elif k == "Y":
                 self.tau_normal.markov_blanket[k] = v.normal_node

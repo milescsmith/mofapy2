@@ -2,27 +2,21 @@
 Module to train a bioFAM model
 """
 
+from rich import box
+from rich.panel import Panel
+
+from mofapy2 import console
 from mofapy2.core.BayesNet import BayesNet
 
 
-def train_model(model):
+def train_model(model: BayesNet) -> None:
     # Sanity check on the Bayesian Network
-    assert isinstance(model, BayesNet), "'model' has to be a BayesNet class"
+    if not isinstance(model, BayesNet):
+        msg = "'model' has to be a BayesNet class"
+        raise TypeError(msg)
 
-    ####################
-    ## Start training ##
-    ####################
-
-    print("\n")
-    print("#" * 38)
-    print("## Training the model with seed %d ##" % (model.options["seed"]))
-    print("#" * 38)
-    print("\n")
+    console.print(Panel(f"Training the model with seed {model.options['seed']!s}", box=box.HEAVY, style="bold blue"))
 
     model.iterate()
 
-    print("\n")
-    print("#" * 23)
-    print("## Training finished ##")
-    print("#" * 23)
-    print("\n")
+    console.print(Panel("Training finished", box=box.HEAVY, style="bold green"))
