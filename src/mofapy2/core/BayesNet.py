@@ -11,13 +11,19 @@ from time import time
 # import resource
 import numpy as np
 import pandas as pd
+from rich.progress import track
 
+from mofapy2 import console
 from mofapy2.core.nodes.multiview_nodes import Multiview_Variational_Node
 from mofapy2.core.nodes.variational_nodes import Variational_Node
 
 from .utils import corr, nans
 
 warnings.filterwarnings("ignore")
+
+
+class TrainingError(Exception):
+    pass
 
 
 class BayesNet:
@@ -46,19 +52,25 @@ class BayesNet:
     def setTrainOptions(self, train_opts):
         """Method to store training options"""
 
-        # Sanity checks
-        assert "maxiter" in train_opts, "'maxiter' not found in the training options dictionary"
-        assert "start_drop" in train_opts, "'start_drop' not found in the training options dictionary"
-        assert "freq_drop" in train_opts, "'freq_drop' not found in the training options dictionary"
-        assert "verbose" in train_opts, "'verbose' not found in the training options dictionary"
-        assert "quiet" in train_opts, "'quiet' not found in the training options dictionary"
-        # assert "tolerance" in train_opts, "'tolerance' not found in the training options dictionary"
-        assert "convergence_mode" in train_opts, "'convergence_mode' not found in the training options dictionary"
-        assert "forceiter" in train_opts, "'forceiter' not found in the training options dictionary"
-        assert "schedule" in train_opts, "'schedule' not found in the training options dictionary"
-        assert "start_sparsity" in train_opts, "'start_sparsity' not found in the training options dictionary"
-        assert "gpu_mode" in train_opts, "'gpu_mode' not found in the training options dictionary"
-        assert "start_elbo" in train_opts, "'gpu_mode' not found in the training options dictionary"
+        # Sanity checks – raise explicit errors instead of using assert
+        required_keys = [
+            "maxiter",
+            "start_drop",
+            "freq_drop",
+            "verbose",
+            "quiet",
+            # "tolerance",  # optional, left commented as before
+            "convergence_mode",
+            "forceiter",
+            "schedule",
+            "start_sparsity",
+            "gpu_mode",
+            "start_elbo",
+        ]
+        for key in required_keys:
+            if key not in train_opts:
+                msg = f"'{key}' not found in the training options dictionary"
+                raise KeyError(msg)
 
         self.options = train_opts
 
@@ -76,7 +88,7 @@ class BayesNet:
         params = {}
         for node in nodes:
             tmp = self.nodes[node].getParameters()
-            if tmp != None:
+            if tmp is not None:
                 params[node] = tmp
         return params
 
@@ -147,12 +159,12 @@ class BayesNet:
                         r2[g][m, k] = 1.0 - Res / SS
         return r2
 
-    def removeInactiveFactors(self, min_r2=None, return_idx=False):
+    def removeInactiveFactors(self, min_r2: float | None = None, return_idx: bool = False) -> np.ndarray | None:
         """Method to remove inactive factors
 
         PARAMETERS
         ----------
-        min_r2: float
+        min_r2: float, optional
             threshold to shut down factors based on a minimum variance explained per group and view
         """
         drop_dic = {}
@@ -180,13 +192,11 @@ class BayesNet:
         #     self.scales = self.scales.drop(columns = drop)
         #     self.scales.columns = range(0, len(self.scales.columns))
         if self.dim["K"] == 0:
-            print("All factors shut down, no structure found in the data.")
-            exit()
+            msg = "All factors shut down, no structure found in the data."
+            raise ValueError(msg)
 
         if return_idx:
             return drop
-
-        pass
 
     def precompute(self):
         # Precompute terms
@@ -201,13 +211,12 @@ class BayesNet:
             node.TauTrick = True
 
         if self.options["verbose"]:
-            print("ELBO before training:")
-            print(
-                "".join(["%s=%.2f  " % (k, v) for k, v in elbo.drop("total").items()])
-                + "\nTotal: %.2f\n" % elbo["total"]
+            console.print("ELBO before training:")
+            console.print(
+                "".join([f"{k}={v:.2f}  " for k, v in elbo.drop("total").items()]) + f"\nTotal: {elbo['total']:.2f}\n"
             )
         elif not self.options["quiet"]:
-            print("ELBO before training: %.2f \n" % elbo["total"])
+            console.print(f"ELBO before training: {elbo['total']:.2f} \n")
 
         return elbo
 
@@ -218,7 +227,7 @@ class BayesNet:
         nodes = list(self.getVariationalNodes().keys())
         elbo = pd.DataFrame(
             data=nans((self.options["maxiter"] + 1, len(nodes) + 1)),
-            columns=nodes + ["total"],
+            columns=pd.Index([*nodes, "total"]),
         )
         number_factors = nans(self.options["maxiter"] + 1)
         iter_time = nans(self.options["maxiter"] + 1)
@@ -235,7 +244,9 @@ class BayesNet:
         iter_time[0] = 0.0
 
         try:
-            for i in range(1, self.options["maxiter"]):
+            for i in track(
+                range(1, self.options["maxiter"]), console=console, description="Training the model...", transient=True
+            ):
                 t = time()
 
                 # Remove inactive factors
@@ -247,7 +258,7 @@ class BayesNet:
                 # Update node by node, with E and M step merged
                 t_updates = time()
                 for node in self.options["schedule"]:
-                    if (node == "ThetaW" or node == "ThetaZ") and i < self.options["start_sparsity"]:
+                    if (node in {"ThetaW", "ThetaZ"}) and i < self.options["start_sparsity"]:
                         continue
                     self.nodes[node].update()
                 t_updates = time() - t_updates
@@ -268,27 +279,19 @@ class BayesNet:
 
                     # Print ELBO monitoring
                     if not self.options["quiet"]:
-                        print(
-                            "Iteration %d: time=%.2f, ELBO=%.2f, deltaELBO=%.3f (%.8f%%), Factors=%d"
-                            % (
-                                i,
-                                time() - t,
-                                elbo.iloc[i]["total"],
-                                delta_elbo,
-                                100 * abs(delta_elbo / elbo.iloc[0]["total"]),
-                                (self.dim["K"]),
-                            )
+                        console.print(
+                            f"Iteration {i}: time={time() - t:.2f}, ELBO={elbo.iloc[i]['total']:.2f}, deltaELBO={delta_elbo:.3f} ({100 * abs(delta_elbo / elbo.iloc[0]['total']):.8f}%), Factors={self.dim['K']}"
                         )
                         if delta_elbo < 0 and not self.options["stochastic"]:
-                            print("Warning, lower bound is decreasing...\a")
+                            console.print("Warning, lower bound is decreasing...\a")
 
                     # Print ELBO decomposed by node and variance explained
                     if self.options["verbose"]:
-                        print(
+                        console.print(
                             "- ELBO decomposition:  "
-                            + "".join(["%s=%.2f  " % (k, v) for k, v in elbo.iloc[i].drop("total").items()])
+                            + "".join([f"{k}={v:.2f}  " for k, v in elbo.iloc[i].drop("total").items()])
                         )
-                        print("- Time spent in ELBO computation: %.1f%%" % (100 * t_elbo / (t_updates + t_elbo)))
+                        console.print(f"- Time spent in ELBO computation: {(100 * t_elbo / (t_updates + t_elbo)):.1f}%")
 
                     # Assess convergence
                     if (
@@ -303,12 +306,12 @@ class BayesNet:
                             number_factors = number_factors[:i]
                             elbo = elbo[:i]
                             iter_time = iter_time[:i]
-                            print("\nConverged!\n")
+                            console.print("\nConverged!\n")
                             break
 
                 # Do not calculate lower bound
                 elif not self.options["quiet"]:
-                    print("Iteration %d: time=%.2f, Factors=%d" % (i, time() - t, self.dim["K"]))
+                    console.print(f"Iteration {i}: time={time() - t:.2f}, Factors={self.dim['K']}")
 
                 # Print other statistics
                 if self.options["verbose"]:
@@ -350,16 +353,16 @@ class BayesNet:
         # Variance explained
         r2 = np.asarray(self.calculate_variance_explained(total=True)).mean(axis=0)
         r2[r2 < 0] = 0.0
-        print(
-            "- Variance explained:  " + "   ".join(["View %s: %.2f%%" % (m, 100 * r2[m]) for m in range(self.dim["M"])])
+        console.print(
+            "- Variance explained:  " + "   ".join([f"View {m}: {100 * r2[m]:.2f}%" for m in range(self.dim["M"])])
         )
 
         # Sparsity levels of the weights
         W = self.nodes["W"].getExpectation()
         foo = [np.mean(np.absolute(W[m]) < 1e-3) for m in range(self.dim["M"])]
-        print(
+        console.print(
             "- Fraction of zero weights:  "
-            + "   ".join(["View %s: %.0f%%" % (m, 100 * foo[m]) for m in range(self.dim["M"])])
+            + "   ".join([f"View {m}: {100 * foo[m]:.0f}%" for m in range(self.dim["M"])])
         )
 
         # Correlation between factors
@@ -367,32 +370,28 @@ class BayesNet:
         Z += np.random.normal(np.zeros(Z.shape), 1e-10)
         r = np.absolute(corr(Z.T, Z.T))
         np.fill_diagonal(r, 0)
-        print("- Maximum correlation between factors: %.2f" % (np.nanmax(r)))
+        console.print(f"- Maximum correlation between factors: {np.nanmax(r):.2f}")
 
         # Factor norm
         bar = np.mean(np.square(Z), axis=0)
-        print("- Factor norms:  " + " ".join(["%.2f" % bar[k] for k in range(Z.shape[1])]))
+        console.print("- Factor norms:  " + " ".join([f"{bar[k]:.2f}" for k in range(Z.shape[1])]))
 
         # Tau
         tau = self.nodes["Tau"].getExpectation()
-        print(
-            "- Tau per view (average):  "
-            + "   ".join(["View %s: %.2f" % (m, tau[m].mean()) for m in range(self.dim["M"])])
+        console.print(
+            "- Tau per view (average):  " + "   ".join([f"View {m}: {tau[m].mean():.2f}" for m in range(self.dim["M"])])
         )
 
         # Sigma:
         if "Sigma" in self.nodes.keys():
             sigma = self.nodes["Sigma"]
             if i >= sigma.start_opt and i % sigma.opt_freq == 0:
-                print(
-                    "Sigma node has been optimised:\n- Lengthscales = %s \n- Scale = %s"
-                    % (
-                        np.array2string(sigma.get_ls(), precision=2, separator=", "),
-                        np.array2string(1 - sigma.get_zeta(), precision=2, separator=", "),
-                    )
+                console.print(
+                    "Sigma node has been optimised:\n- Lengthscales = "
+                    f"{np.array2string(sigma.get_ls(), precision=2, separator=', ')} "
+                    "\n- Scale = "
+                    f"{np.array2string(1 - sigma.get_zeta(), precision=2, separator=', ')}"
                 )
-
-        print("\n")
 
     def assess_convergence(self, delta_elbo, first_elbo, convergence_token):
         converged = False
@@ -409,8 +408,8 @@ class BayesNet:
         elif self.options["convergence_mode"] == "slow":
             convergence_threshold = 0.000005
         else:
-            print("Convergence mode not recognised")
-            exit()
+            msg = "Convergence mode not recognised"
+            raise TrainingError(msg)
 
         if 100 * abs(delta_elbo / first_elbo) < convergence_threshold:
             convergence_token += 1
@@ -497,19 +496,18 @@ class StochasticBayesNet(BayesNet):
         batch_ix = i % n_batches
         epoch = int(i / n_batches)
         if batch_ix == 0:
-            print("\n## Epoch %s ##" % str(epoch + 1))
-            print("-------------------------------------------------------------------------------------------")
+            console.print(f"## Epoch {epoch + 1!s} ##", new_line_start=True)
             self.shuffled_ix = np.random.choice(range(self.dim["N"]), size=self.dim["N"], replace=False)
 
-        min = int(S * batch_ix)
-        max = int(S * (batch_ix + 1))
+        _min = int(S * batch_ix)
+        _max = int(S * (batch_ix + 1))
 
-        if max > self.dim["N"]:
-            print("Error in stochastic")
-            exit()
+        if _max > self.dim["N"]:
+            msg = "Error in stochastic"
+            raise TrainingError(msg)
 
         # Define mini batch
-        ix = self.shuffled_ix[min:max]
+        ix = self.shuffled_ix[_min:_max]
         self.define_mini_batch(ix)
 
         return ix, epoch
@@ -533,7 +531,7 @@ class StochasticBayesNet(BayesNet):
         nodes = list(self.getVariationalNodes().keys())
         elbo = pd.DataFrame(
             data=nans((self.options["maxiter"] + 1, len(nodes) + 1)),
-            columns=nodes + ["total"],
+            columns=pd.Index([*nodes, "total"]),
         )
         number_factors = nans(self.options["maxiter"] + 1)
         iter_time = nans(self.options["maxiter"] + 1)
@@ -550,15 +548,12 @@ class StochasticBayesNet(BayesNet):
         iter_count = 0
 
         # Print stochastic settings before training
-        print("Using stochastic variational inference with the following parameters:")
-        print(
-            "- Batch size (fraction of samples): %.2f\n- Forgetting rate: %.2f\n- Learning rate: %.2f\n- Starts at iteration: %d \n"
-            % (
-                100 * self.options["batch_size"],
-                self.options["forgetting_rate"],
-                self.options["learning_rate"],
-                self.options["start_stochastic"],
-            )
+        console.print("Using stochastic variational inference with the following parameters:")
+        console.print(
+            f"- Batch size (fraction of samples): {100 * self.options['batch_size']:.2f}\n"
+            f"- Forgetting rate: {self.options['forgetting_rate']:.2f}\n"
+            f"- Learning rate: {self.options['learning_rate']:.2f}\n"
+            f"- Starts at iteration: {self.options['start_stochastic']} \n"
         )
         ix = None
 
@@ -611,27 +606,21 @@ class StochasticBayesNet(BayesNet):
                     delta_elbo = elbo.iloc[i]["total"] - elbo.iloc[i - self.options["freqELBO"]]["total"]
 
                 # Print ELBO monitoring
-                print(
-                    "Iteration %d: time=%.2f, ELBO=%.2f, deltaELBO=%.3f (%.9f%%), Factors=%d"
-                    % (
-                        i,
-                        time() - t,
-                        elbo.iloc[i]["total"],
-                        delta_elbo,
-                        100 * abs(delta_elbo / elbo.iloc[0]["total"]),
-                        (self.dim["K"]),
-                    )
+                console.print(
+                    f"Iteration {i}: time={time() - t:.2f}, ELBO={elbo.iloc[i]['total']:.2f}, "
+                    f"deltaELBO={delta_elbo:.3f} ({100 * abs(delta_elbo / elbo.iloc[0]['total']):.9f}%), "
+                    f"Factors={self.dim['K']}"
                 )
                 if delta_elbo < 0 and not self.options["stochastic"]:
-                    print("Warning, lower bound is decreasing...\a")
+                    console.print("Warning, lower bound is decreasing...\a")
 
                 # Print ELBO decomposed by node and variance explained
                 if self.options["verbose"]:
-                    print(
+                    console.print(
                         "- ELBO decomposition:  "
                         + "".join(["%s=%.2f  " % (k, v) for k, v in elbo.iloc[i].drop("total").items()])
                     )
-                    print("- Time spent in ELBO computation: %.1f%%" % (100 * t_elbo / (t_updates + t_elbo)))
+                    console.print("- Time spent in ELBO computation: %.1f%%" % (100 * t_elbo / (t_updates + t_elbo)))
 
                 # Assess convergence
                 if i > self.options["start_elbo"] and not self.options["forceiter"]:
@@ -642,20 +631,20 @@ class StochasticBayesNet(BayesNet):
                         number_factors = number_factors[:i]
                         elbo = elbo[:i]
                         iter_time = iter_time[:i]
-                        print("\nConverged!\n")
+                        console.print("\nConverged!\n")
                         break
 
             # Do not calculate lower bound
             else:
-                print("Iteration %d: time=%.2f, Factors=%d" % (i, time() - t, self.dim["K"]))
+                console.print(f"Iteration {i}: time={time() - t:.2f}, Factors={self.dim['K']}")
 
             # Print other statistics
             if i >= (self.options["start_stochastic"]):
-                print("- Step size: %.3f" % ro)
+                console.print(f"- Step size: {ro:.3f}")
 
             if self.options["verbose"]:
                 self.print_verbose_message(i)
-            # print("")
+            # console.print("")
 
             iter_time[i] = time() - t
             iter_count += 1
@@ -664,7 +653,7 @@ class StochasticBayesNet(BayesNet):
             sys.stdout.flush()
 
         if iter_count + 1 == self.options["maxiter"]:
-            print("\nMaximum number of iterations reached: {}\n".format(self.options["maxiter"]))
+            console.print("\nMaximum number of iterations reached: {}\n".format(self.options["maxiter"]))
 
         # Finish by collecting the training statistics
         self.train_stats = {

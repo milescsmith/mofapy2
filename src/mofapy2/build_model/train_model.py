@@ -15,8 +15,22 @@ def train_model(model: BayesNet) -> None:
         msg = "'model' has to be a BayesNet class"
         raise TypeError(msg)
 
-    console.print(Panel(f"Training the model with seed {model.options['seed']!s}", box=box.HEAVY, style="bold blue"))
+    console.print(
+        Panel(
+            f"Training the model with seed {model.options['seed']!s}",
+            box=box.HEAVY,
+            style="bold blue",
+            expand=False,
+        )
+    )
 
     model.iterate()
 
-    console.print(Panel("Training finished", box=box.HEAVY, style="bold green"))
+    console.print(
+        Panel(
+            "Training finished",
+            box=box.HEAVY,
+            style="bold green",
+            expand=False,
+        )
+    )
