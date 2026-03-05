@@ -17,7 +17,7 @@ from rich.padding import Padding
 from rich.panel import Panel
 
 from mofapy2 import config, console
-from mofapy2.build_model.build_model import BuildMofaSmooth, BuildBiofam
+from mofapy2.build_model.build_model import BuildBiofam, BuildMofaSmooth
 from mofapy2.build_model.save_model import SaveModel
 from mofapy2.build_model.train_model import train_model
 from mofapy2.build_model.utils import guess_likelihoods, process_data
@@ -625,7 +625,9 @@ class entry_point:
             likelihoods = guess_likelihoods(data)
         elif isinstance(likelihoods, str):
             likelihoods = [likelihoods]
-        assert len(likelihoods) == self.dimensionalities["M"], "Please specify one likelihood for each view"
+        if len(likelihoods) != self.dimensionalities["M"]:
+            msg = "Please specify one likelihood for each view"
+            raise ValueError(msg)
         if not set(likelihoods).issubset({"gaussian", "bernoulli", "poisson"}):
             msg = "Available likelihoods are 'gaussian','bernoulli', 'poisson'"
             raise ValueError(msg)
@@ -662,7 +664,9 @@ class entry_point:
         """Set training options"""
 
         # Sanity checks
-        assert hasattr(self, "model_opts"), "Model options have to be defined before training options"
+        if not hasattr(self, "model_opts"):
+            msg = "Model options have to be defined before training options"
+            raise ValueError(msg)
 
         self.train_opts = {}
 
@@ -819,11 +823,18 @@ class entry_point:
             )
             self.train_opts["stochastic"] = False
             return None
-        assert hasattr(self, "train_opts"), "Train options not defined"
-        assert 0 < learning_rate <= 1, "Learning rate must range from 0 and 1"
-        # assert 0 < forgetting_rate <= 1, 'Forgetting rate must range from 0 and 1'
-        assert 0 < batch_size <= 1, "Batch size must range from 0 to 1"
-        assert start_stochastic >= 1, "start_stochastic must be >= 1"
+        if not hasattr(self, "train_opts"):
+            msg = "Train options not defined"
+            raise ValueError(msg)
+        if learning_rate <= 0 or learning_rate > 1:
+            msg = "Learning rate must range from 0 and 1"
+            raise ValueError(msg)
+        if batch_size <= 0 or batch_size > 1:
+            msg = "Batch size must range from 0 to 1"
+            raise ValueError(msg)
+        if start_stochastic < 1:
+            msg = "start_stochastic must be >= 1"
+            raise ValueError(msg)
 
         if self.train_opts["drop"]["min_r2"] is not None:
             console.print("Dropping factors is currently disabled with stochastic inference...")
@@ -877,16 +888,18 @@ class entry_point:
         """
 
         # Sanity checks
-        assert hasattr(self, "smooth_opts"), "Please run set_covariates() before set_smooth_options()"
-        assert hasattr(self, "model_opts"), (
-            "Model options not defined. Please run set_model_opts() before set_smooth_options()"
-        )
-        assert hasattr(self, "train_opts"), (
-            "Training options not defined. Please run set_train_opts() before set_smooth_options()"
-        )
-        assert self.sample_cov is not None, (
-            "Before setting smooth options, you need to define the covariates with set_covariates"
-        )
+        if not hasattr(self, "smooth_opts"):
+            msg = "Please run set_covariates() before set_smooth_options()"
+            raise ValueError(msg)
+        if not hasattr(self, "model_opts"):
+            msg = "Model options not defined. Please run set_model_opts() before set_smooth_options()"
+            raise ValueError(msg)
+        if not hasattr(self, "train_opts"):
+            msg = "Training options not defined. Please run set_train_opts() before set_smooth_options()"
+            raise ValueError(msg)
+        if self.sample_cov is None:
+            msg = "Before setting smooth options, you need to define the covariates with set_covariates"
+            raise ValueError(msg)
 
         # activate GP prior on factors
         self.smooth_opts["GP_factors"] = True

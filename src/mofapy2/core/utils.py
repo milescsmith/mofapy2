@@ -30,9 +30,11 @@ def fast_dot(A, B):
         input matrices.
     """
     if A.dtype != B.dtype:
-        raise ValueError("A and B must be of the same type.")
+        msg = "A and B must be of the same type."
+        raise ValueError(msg)
     if A.dtype not in (np.float32, np.float64):
-        raise ValueError("Data must be single or double precision float.")
+        msg = "Data must be single or double precision float."
+        raise ValueError(msg)
 
     dot = linalg.get_blas_funcs("gemm", (A, B))
     A, trans_a = _impose_f_order(A)
@@ -116,8 +118,8 @@ def corr(A, B):
     """
 
     # Rowwise mean of input arrays & subtract from input arrays themselves
-    A_mA = A - A.mean(1)[:, None]
-    B_mB = B - B.mean(1)[:, None]
+    A_mA = A - np.mean(A, axis=1, keepdims=True)
+    B_mB = B - np.mean(B, axis=1, keepdims=True)
 
     # Sum of squares across rows
     ssA = (A_mA**2).sum(1)
@@ -133,5 +135,5 @@ def infer_platform():
     elif platform == "darwin":
         return 1e6
     else:
-        print("Platform not recognised")
-        exit()
+        msg="Platform not recognised"
+        raise OSError(msg)

@@ -82,6 +82,7 @@ class InitModel:
 
         self.nodes = {}
 
+
     # my gods these `init` fuctions are repetitve. should probably refactor into a single function?
     def initZ(
         self,
@@ -148,7 +149,7 @@ class InitModel:
                 case str() if qmean == "pca":
                     # PCA initialisation
                     pca = sklearn.decomposition.PCA(n_components=self.K, whiten=True)
-                    Ytmp = np.concatenate(Y, axis=1) # I don't understand - how is this concatenating a single array?
+                    Ytmp = np.concatenate(Y, axis=1)  # I don't understand - how is this concatenating a single array?
                     # Ytmp = np.ravel(Y).reshape(-1,1) #this is what I think the above is attempting to do? need to test it.
 
                     if impute:
